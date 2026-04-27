@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#3A3A3C"/>
+      <stop offset="100%" style="stop-color:#1C1C1E"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF9F0A"/>
+      <stop offset="100%" style="stop-color:#FF9500"/>
+    </linearGradient>
+    <linearGradient id="gray" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#636366"/>
+      <stop offset="100%" style="stop-color:#48484A"/>
+    </linearGradient>
+    <linearGradient id="darkGray" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2C2C2E"/>
+      <stop offset="100%" style="stop-color:#1C1C1E"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="180" fill="url(#bg)"/>
+
+  <!-- Display -->
+  <rect x="100" y="120" width="824" height="160" rx="20" fill="#000000" opacity="0.6"/>
+  <text x="900" y="240" font-family="SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif" font-size="120" font-weight="300" fill="#FFFFFF" text-anchor="end">888,888</text>
+
+  <!-- Button Row 1: AC, +/-, %, ÷ -->
+  <g filter="url(#shadow)">
+    <!-- AC -->
+    <circle cx="180" cy="380" r="70" fill="url(#gray)"/>
+    <text x="180" y="400" font-family="SF Pro Display, -apple-system, sans-serif" font-size="48" font-weight="500" fill="#FFFFFF" text-anchor="middle">AC</text>
+
+    <!-- +/- -->
+    <circle cx="340" cy="380" r="70" fill="url(#gray)"/>
+    <text x="340" y="405" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">+/−</text>
+
+    <!-- % -->
+    <circle cx="500" cy="380" r="70" fill="url(#gray)"/>
+    <text x="500" y="400" font-family="SF Pro Display, -apple-system, sans-serif" font-size="52" fill="#FFFFFF" text-anchor="middle">%</text>
+
+    <!-- ÷ -->
+    <circle cx="660" cy="380" r="70" fill="url(#orange)"/>
+    <text x="660" y="410" font-family="SF Pro Display, -apple-system, sans-serif" font-size="64" fill="#FFFFFF" text-anchor="middle">÷</text>
+  </g>
+
+  <!-- Button Row 2: 7, 8, 9, × -->
+  <g filter="url(#shadow)">
+    <!-- 7 -->
+    <circle cx="180" cy="530" r="70" fill="url(#darkGray)"/>
+    <text x="180" y="555" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">7</text>
+
+    <!-- 8 -->
+    <circle cx="340" cy="530" r="70" fill="url(#darkGray)"/>
+    <text x="340" y="555" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">8</text>
+
+    <!-- 9 -->
+    <circle cx="500" cy="530" r="70" fill="url(#darkGray)"/>
+    <text x="500" y="555" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">9</text>
+
+    <!-- × -->
+    <circle cx="660" cy="530" r="70" fill="url(#orange)"/>
+    <text x="660" y="560" font-family="SF Pro Display, -apple-system, sans-serif" font-size="60" fill="#FFFFFF" text-anchor="middle">×</text>
+  </g>
+
+  <!-- Button Row 3: 4, 5, 6, - -->
+  <g filter="url(#shadow)">
+    <!-- 4 -->
+    <circle cx="180" cy="680" r="70" fill="url(#darkGray)"/>
+    <text x="180" y="705" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">4</text>
+
+    <!-- 5 -->
+    <circle cx="340" cy="680" r="70" fill="url(#darkGray)"/>
+    <text x="340" y="705" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">5</text>
+
+    <!-- 6 -->
+    <circle cx="500" cy="680" r="70" fill="url(#darkGray)"/>
+    <text x="500" y="705" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">6</text>
+
+    <!-- - -->
+    <circle cx="660" cy="680" r="70" fill="url(#orange)"/>
+    <text x="660" y="715" font-family="SF Pro Display, -apple-system, sans-serif" font-size="72" font-weight="300" fill="#FFFFFF" text-anchor="middle">−</text>
+  </g>
+
+  <!-- Button Row 4: 1, 2, 3, + -->
+  <g filter="url(#shadow)">
+    <!-- 1 -->
+    <circle cx="180" cy="830" r="70" fill="url(#darkGray)"/>
+    <text x="180" y="855" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">1</text>
+
+    <!-- 2 -->
+    <circle cx="340" cy="830" r="70" fill="url(#darkGray)"/>
+    <text x="340" y="855" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">2</text>
+
+    <!-- 3 -->
+    <circle cx="500" cy="830" r="70" fill="url(#darkGray)"/>
+    <text x="500" y="855" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">3</text>
+
+    <!-- + -->
+    <circle cx="660" cy="830" r="70" fill="url(#orange)"/>
+    <text x="660" y="860" font-family="SF Pro Display, -apple-system, sans-serif" font-size="64" font-weight="300" fill="#FFFFFF" text-anchor="middle">+</text>
+  </g>
+
+  <!-- Button Row 5: 0 (wide), ., = -->
+  <g filter="url(#shadow)">
+    <!-- 0 (wide button) -->
+    <rect x="110" y="900" width="280" height="140" rx="70" fill="url(#darkGray)"/>
+    <text x="250" y="985" font-family="SF Pro Display, -apple-system, sans-serif" font-size="56" font-weight="400" fill="#FFFFFF" text-anchor="middle">0</text>
+
+    <!-- . -->
+    <circle cx="500" cy="970" r="70" fill="url(#darkGray)"/>
+    <text x="500" y="1000" font-family="SF Pro Display, -apple-system, sans-serif" font-size="72" font-weight="300" fill="#FFFFFF" text-anchor="middle">.</text>
+
+    <!-- = -->
+    <circle cx="660" cy="970" r="70" fill="url(#orange)"/>
+    <text x="660" y="1000" font-family="SF Pro Display, -apple-system, sans-serif" font-size="64" font-weight="400" fill="#FFFFFF" text-anchor="middle">=</text>
+  </g>
+</svg>
