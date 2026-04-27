@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
@@ -12,14 +13,21 @@ const uploadRoutes = require('./routes/upload');
 
 const { authMiddleware } = require('./middleware/auth');
 const mysql = require('./services/mysql');
+const storage = require('./services/storage');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Ensure upload directory exists
+storage.ensureDir(storage.UPLOAD_DIR);
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(storage.UPLOAD_DIR)));
 
 // Rate limiting - 60 requests per minute
 const limiter = rateLimit({
@@ -63,8 +71,9 @@ async function start() {
     await mysql.initDatabase();
     console.log('Database initialized');
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);
+      console.log(`Upload directory: ${storage.UPLOAD_DIR}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

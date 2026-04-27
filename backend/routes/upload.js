@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../services/mysql');
-const oss = require('../services/oss');
+const storage = require('../services/storage');
 
 // Configure multer for memory storage
 const imageUpload = multer({
@@ -43,24 +44,25 @@ router.post('/image', imageUpload.single('file'), async (req, res) => {
 
     const { contact_id } = req.body;
     const fileId = uuidv4();
-    const ossKey = oss.generateOssKey(req.user.id, 'image', fileId);
+    const ext = path.extname(req.file.originalname) || '.jpg';
+    const filePath = storage.generateFilePath(req.user.id, 'image', fileId, ext);
 
-    // Upload to OSS
-    await oss.uploadFile(ossKey, req.file.buffer, {
-      contentType: req.file.mimetype
-    });
+    // Save to local storage
+    await storage.saveFile(filePath, req.file.buffer);
+
+    const relativePath = storage.getFileUrl(filePath);
 
     // Save file metadata
     await query(
       `INSERT INTO files (id, user_id, contact_id, type, original_name, oss_key, oss_bucket, file_size, created_at)
        VALUES (?, ?, ?, 'image', ?, ?, ?, ?, ?)`,
-      [fileId, req.user.id, contact_id || null, req.file.originalname, ossKey, process.env.OSS_BUCKET, req.file.size, Date.now()]
+      [fileId, req.user.id, contact_id || null, req.file.originalname, relativePath, 'local', req.file.size, Date.now()]
     );
 
     res.json({
       file_id: fileId,
-      oss_key: ossKey,
-      thumbnail_url: ossKey // Client will request signed URL for display
+      file_path: relativePath,
+      file_url: `/uploads${relativePath}`
     });
   } catch (error) {
     console.error('Upload image error:', error);
@@ -77,23 +79,25 @@ router.post('/voice', voiceUpload.single('file'), async (req, res) => {
 
     const { contact_id } = req.body;
     const fileId = uuidv4();
-    const ossKey = oss.generateOssKey(req.user.id, 'voice', fileId);
+    const ext = '.m4a';
+    const filePath = storage.generateFilePath(req.user.id, 'voice', fileId, ext);
 
-    // Upload to OSS
-    await oss.uploadFile(ossKey, req.file.buffer, {
-      contentType: req.file.mimetype || 'audio/m4a'
-    });
+    // Save to local storage
+    await storage.saveFile(filePath, req.file.buffer);
+
+    const relativePath = storage.getFileUrl(filePath);
 
     // Save file metadata
     await query(
       `INSERT INTO files (id, user_id, contact_id, type, original_name, oss_key, oss_bucket, file_size, created_at)
        VALUES (?, ?, ?, 'voice', ?, ?, ?, ?, ?)`,
-      [fileId, req.user.id, contact_id || null, req.file.originalname || 'voice.m4a', ossKey, process.env.OSS_BUCKET, req.file.size, Date.now()]
+      [fileId, req.user.id, contact_id || null, 'voice.m4a', relativePath, 'local', req.file.size, Date.now()]
     );
 
     res.json({
       file_id: fileId,
-      oss_key: ossKey
+      file_path: relativePath,
+      file_url: `/uploads${relativePath}`
     });
   } catch (error) {
     console.error('Upload voice error:', error);
@@ -101,7 +105,7 @@ router.post('/voice', voiceUpload.single('file'), async (req, res) => {
   }
 });
 
-// Get signed URL for uploaded file
+// Get file URL
 router.get('/url/:fileId', async (req, res) => {
   try {
     const { fileId } = req.params;
@@ -115,11 +119,8 @@ router.get('/url/:fileId', async (req, res) => {
       return res.status(404).json({ error: '文件不存在' });
     }
 
-    const signedUrl = await oss.getSignedUrl(files[0].oss_key);
-
     res.json({
-      signed_url: signedUrl,
-      expires_in: 900
+      file_url: `/uploads${files[0].oss_key}`
     });
   } catch (error) {
     console.error('Get file URL error:', error);

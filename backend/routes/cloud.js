@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../services/mysql');
-const oss = require('../services/oss');
+const storage = require('../services/storage');
 
 // Upload message/image/voice to cloud backup
 router.post('/upload', async (req, res) => {
@@ -34,7 +34,7 @@ router.post('/upload', async (req, res) => {
     const id = uuidv4();
     const now = Date.now();
 
-    // If there's a file_url (OSS key), use it directly
+    // If there's a file_url, it's already uploaded
     // Otherwise content is the encrypted text
     const cloudUrl = file_url || null;
 
@@ -97,7 +97,7 @@ router.get('/messages', async (req, res) => {
   }
 });
 
-// Get signed URL for cloud file
+// Get file URL for cloud file
 router.get('/file/:fileId', async (req, res) => {
   try {
     const { fileId } = req.params;
@@ -112,11 +112,8 @@ router.get('/file/:fileId', async (req, res) => {
       return res.status(404).json({ error: '文件不存在' });
     }
 
-    const signedUrl = await oss.getSignedUrl(files[0].oss_key);
-
     res.json({
-      signed_url: signedUrl,
-      expires_in: 900
+      file_url: `/uploads${files[0].oss_key}`
     });
   } catch (error) {
     console.error('Get file URL error:', error);
@@ -141,12 +138,13 @@ router.delete('/:cloudId', async (req, res) => {
 
     const message = messages[0];
 
-    // Delete file from OSS if exists
+    // Delete file from local storage if exists
     if (message.cloud_url) {
       try {
-        await oss.deleteFile(message.cloud_url);
-      } catch (ossError) {
-        console.error('OSS delete error:', ossError);
+        const filePath = storage.getAbsolutePath(message.cloud_url);
+        storage.deleteFile(filePath);
+      } catch (err) {
+        console.error('File delete error:', err);
       }
     }
 

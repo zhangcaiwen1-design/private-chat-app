@@ -32,10 +32,7 @@ jobs:
           PORT=3001
           NODE_ENV=production
           JWT_SECRET=${{ secrets.JWT_SECRET }}
-          OSS_ACCESS_KEY_ID=${{ secrets.OSS_ACCESS_KEY_ID }}
-          OSS_ACCESS_KEY_SECRET=${{ secrets.OSS_ACCESS_KEY_SECRET }}
-          OSS_BUCKET=${{ secrets.OSS_BUCKET }}
-          OSS_REGION=${{ secrets.OSS_REGION }}
+          UPLOAD_DIR=/home/admin/private-chat/uploads
           RDS_HOST=${{ secrets.RDS_HOST }}
           RDS_PORT=3306
           RDS_DB=${{ secrets.RDS_DB }}
@@ -55,6 +52,7 @@ jobs:
 
             # 创建目录
             mkdir -p /home/admin/private-chat
+            mkdir -p /home/admin/private-chat/uploads
 
             # 停止旧服务
             pkill -f "node.*server.js" || true
