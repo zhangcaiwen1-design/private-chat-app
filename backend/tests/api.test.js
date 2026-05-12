@@ -82,15 +82,13 @@ test('register creates a phone account and me returns the signed-in user', async
     .post('/api/v1/auth/register')
     .send({
       phone: '13855550001',
-      password: '123456',
-      nickname: '测试用户',
       device_id: deviceId,
     })
     .expect(200);
 
   expect(registerRes.body.token).toEqual(expect.any(String));
   expect(registerRes.body.user.phone).toBe('13855550001');
-  expect(registerRes.body.user.nickname).toBe('测试用户');
+  expect(registerRes.body.user.nickname).toBe('用户0001');
   expect(registerRes.body.user).not.toHaveProperty('password_hash');
 
   const meRes = await request(app)
@@ -100,7 +98,7 @@ test('register creates a phone account and me returns the signed-in user', async
     .expect(200);
 
   expect(meRes.body.user.phone).toBe('13855550001');
-  expect(meRes.body.user.nickname).toBe('测试用户');
+  expect(meRes.body.user.nickname).toBe('用户0001');
 });
 
 test('register does not bind local contacts until the user chooses bind', async () => {
@@ -170,7 +168,7 @@ test('phone lookup returns public profile preview without exposing password fiel
   expect(lookupRes.body.user).not.toHaveProperty('password_hash');
 });
 
-test('password update changes the login password for the current account', async () => {
+test('phone login ignores account password for an existing phone account', async () => {
   const deviceId = 'device-auth-password';
   const registerRes = await request(app)
     .post('/api/v1/auth/register')
@@ -189,22 +187,39 @@ test('password update changes the login password for the current account', async
     .send({ password: '654321' })
     .expect(200);
 
-  await request(app)
+  const oldPasswordRes = await request(app)
     .post('/api/v1/auth/login')
     .send({
       phone: '13855550009',
       password: '123456',
       device_id: 'device-auth-password-old',
     })
-    .expect(401);
+    .expect(200);
+  expect(oldPasswordRes.body.user.phone).toBe('13855550009');
 
-  await request(app)
+  const newPasswordRes = await request(app)
     .post('/api/v1/auth/login')
     .send({
       phone: '13855550009',
       password: '654321',
       device_id: 'device-auth-password-new',
     })
+    .expect(200);
+  expect(newPasswordRes.body.user.phone).toBe('13855550009');
+
+  const noPasswordRes = await request(app)
+    .post('/api/v1/auth/login')
+    .send({
+      phone: '13855550009',
+      device_id: 'device-auth-password-none',
+    })
+    .expect(200);
+  expect(noPasswordRes.body.user.phone).toBe('13855550009');
+
+  await request(app)
+    .get('/api/v1/auth/me')
+    .set('Authorization', `Bearer ${registerRes.body.token}`)
+    .set('x-device-id', deviceId)
     .expect(200);
 });
 
@@ -259,7 +274,6 @@ test('profile update changes the login phone and rejects duplicate phones', asyn
     .post('/api/v1/auth/login')
     .send({
       phone: '13855550021',
-      password: '123456',
       device_id: 'device-auth-phone-new',
     })
     .expect(200);
@@ -374,6 +388,32 @@ test('can create contact and send persistent text message', async () => {
   const messagesRes = await request(app).get(`/api/v1/messages/${contactId}`).expect(200);
   expect(messagesRes.body.messages).toHaveLength(1);
   expect(messagesRes.body.messages[0].text).toBe('你好，本地服务器');
+});
+
+test('can create contact and send a sticker message', async () => {
+  const contactRes = await request(app)
+    .post('/api/v1/contacts')
+    .send({ name: 'sticker-friend', phone: '13800000001' })
+    .expect(200);
+
+  const contactId = contactRes.body.contact.id;
+  const sendRes = await request(app)
+    .post('/api/v1/messages')
+    .send({ contact_id: contactId, type: 'sticker', content: 'heart' })
+    .expect(200);
+
+  expect(sendRes.body.message.contact_id).toBe(contactId);
+  expect(sendRes.body.message.type).toBe('sticker');
+  expect(sendRes.body.message.content).toBe('heart');
+  expect(sendRes.body.message.stickerId).toBe('heart');
+  expect(sendRes.body.message).not.toHaveProperty('uri');
+
+  const messagesRes = await request(app).get(`/api/v1/messages/${contactId}`).expect(200);
+  expect(messagesRes.body.messages.filter((item) => item.type === 'sticker' && item.stickerId === 'heart')).toHaveLength(1);
+
+  const contactsRes = await request(app).get('/api/v1/contacts').expect(200);
+  const refreshedContact = contactsRes.body.contacts.find((item) => item.id === contactId);
+  expect(refreshedContact.last_message).toBe('[sticker]');
 });
 
 test('delete message removes it from later reads', async () => {
@@ -720,6 +760,58 @@ test('paid members can restore a voice cloud backup into the local conversation'
     .expect(200);
 
   expect(messagesRes.body.messages.filter((item) => item.type === 'voice' && item.uri === voiceUri && item.duration === 7)).toHaveLength(1);
+
+  await request(app)
+    .post(`/api/v1/cloud-backups/${uploadRes.body.backup.id}/restore`)
+    .set(userHeaders)
+    .expect(409);
+});
+
+test('paid members can restore a sticker cloud backup into the local conversation', async () => {
+  const userHeaders = {
+    'x-user-id': 'cloud-member-sticker',
+    'x-user-name': 'cloud-member-sticker',
+    'x-user-phone': '13623000001',
+  };
+
+  await activatePaidMembership(userHeaders);
+
+  const contactRes = await request(app)
+    .post('/api/v1/contacts')
+    .set(userHeaders)
+    .send({ name: 'cloud-sticker-contact', phone: '13623000000' })
+    .expect(200);
+
+  const uploadRes = await request(app)
+    .post('/api/v1/cloud-backups')
+    .set(userHeaders)
+    .send({
+      contact_id: contactRes.body.contact.id,
+      type: 'sticker',
+      content: 'heart',
+      source: 'manual_backup',
+    })
+    .expect(200);
+
+  expect(uploadRes.body.backup.type).toBe('sticker');
+  expect(uploadRes.body.backup.stickerId).toBe('heart');
+
+  const restoreRes = await request(app)
+    .post(`/api/v1/cloud-backups/${uploadRes.body.backup.id}/restore`)
+    .set(userHeaders)
+    .expect(200);
+
+  expect(restoreRes.body.message.contact_id).toBe(contactRes.body.contact.id);
+  expect(restoreRes.body.message.type).toBe('sticker');
+  expect(restoreRes.body.message.stickerId).toBe('heart');
+  expect(restoreRes.body.message.sync_state).toBe('local_only');
+
+  const messagesRes = await request(app)
+    .get(`/api/v1/messages/${contactRes.body.contact.id}`)
+    .set(userHeaders)
+    .expect(200);
+
+  expect(messagesRes.body.messages.filter((item) => item.type === 'sticker' && item.stickerId === 'heart')).toHaveLength(1);
 
   await request(app)
     .post(`/api/v1/cloud-backups/${uploadRes.body.backup.id}/restore`)

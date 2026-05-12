@@ -28,7 +28,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: '缺少必要参数' });
   }
 
-  if (!['text', 'image', 'voice'].includes(type)) {
+  if (!['text', 'image', 'voice', 'sticker'].includes(type)) {
     return res.status(400).json({ error: '无效的消息类型' });
   }
 

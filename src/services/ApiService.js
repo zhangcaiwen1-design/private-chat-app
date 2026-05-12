@@ -239,7 +239,7 @@ export async function register(payload) {
 export async function login(phone, password, deviceId) {
   return request('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ phone, password, device_id: deviceId }),
+    body: JSON.stringify({ phone, ...(password ? { password } : {}), device_id: deviceId }),
   });
 }
 

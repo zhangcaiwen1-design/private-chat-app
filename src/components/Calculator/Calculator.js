@@ -80,25 +80,28 @@ export default function Calculator({ onUnlock, kickoutMessage = '' }) {
   };
 
   const handleEqual = async () => {
+    if (verifying) {
+      return;
+    }
+
     const entered = input.trim();
     const unlockPin = await getUserUnlockPin().catch(() => '');
 
     if (unlockPin && entered === unlockPin) {
       setVerifying(true);
       setDisplay('验证中...');
-      authenticateWithBiometric()
-        .then(() => {
-          setDisplay('0');
-          setInput('');
-          setVerifying(false);
-          onUnlock();
-        })
-        .catch(() => {
-          setVerifying(false);
-          setDisplay('验证失败');
-          setInput('');
-          setTimeout(() => setDisplay('0'), 1500);
-        });
+      try {
+        await authenticateWithBiometric();
+        setDisplay('0');
+        setInput('');
+        setVerifying(false);
+        await onUnlock?.();
+      } catch {
+        setVerifying(false);
+        setDisplay('验证失败');
+        setInput('');
+        setTimeout(() => setDisplay('0'), 1500);
+      }
       return;
     }
 

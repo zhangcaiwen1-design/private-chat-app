@@ -3,7 +3,7 @@ import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getUserUnlockPin } from '../../services/UserService';
-import { updatePassword } from '../../services/AuthService';
+import { updateUnlockPin } from '../../services/AuthService';
 
 export default function UnlockPinSettings({ onBack, onLock }) {
   const insets = useSafeAreaInsets();
@@ -25,10 +25,10 @@ export default function UnlockPinSettings({ onBack, onLock }) {
 
     setSaving(true);
     try {
-      await updatePassword(nextPin);
+      await updateUnlockPin(nextPin);
       onBack && onBack();
     } catch (error) {
-      Alert.alert('保存失败', error.message || '无法修改密码');
+      Alert.alert('保存失败', error.message || '无法修改进入密码');
     } finally {
       setSaving(false);
     }
@@ -40,7 +40,7 @@ export default function UnlockPinSettings({ onBack, onLock }) {
         <TouchableOpacity style={styles.headerButton} onPress={onBack} accessibilityLabel="返回会话列表">
           <Ionicons name="chevron-back" size={24} color="#111111" />
         </TouchableOpacity>
-        <Text style={styles.title}>修改密码</Text>
+        <Text style={styles.title}>修改进入密码</Text>
         <TouchableOpacity style={styles.headerButton} onPress={onLock} accessibilityLabel="锁定应用">
           <Text style={styles.lockButtonText}>锁定</Text>
         </TouchableOpacity>
@@ -48,13 +48,13 @@ export default function UnlockPinSettings({ onBack, onLock }) {
 
       <View style={styles.content}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>登录 / 进入密码</Text>
-          <Text style={styles.cardHint}>这里修改的是账号密码，同时也会同步成从计算器进入私密聊天的密码。</Text>
+          <Text style={styles.cardTitle}>计算器进入密码</Text>
+          <Text style={styles.cardHint}>这里只修改这台手机从计算器进入私密聊天的密码，不再修改手机号账号密码。</Text>
           <TextInput
             style={styles.input}
             value={unlockPin}
             onChangeText={setUnlockPin}
-            placeholder="输入新的密码"
+            placeholder="输入新的进入密码"
             placeholderTextColor="#9B9B9B"
             keyboardType="number-pad"
           />

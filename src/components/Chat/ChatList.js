@@ -155,6 +155,9 @@ export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRitual
     if (contact.last_message === '[image]') {
       return '[图片]';
     }
+    if (contact.last_message === '[sticker]') {
+      return '[\u8868\u60c5\u5305]';
+    }
     return contact.last_message || '暂无消息';
   };
 
@@ -241,8 +244,8 @@ export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRitual
     },
     {
       key: 'unlock-pin-settings',
-      title: '修改密码',
-      subtitle: '修改登录密码，同时也会更新进入界面的密码',
+      title: '修改进入密码',
+      subtitle: '只修改这台手机从计算器进入聊天界面的密码',
       icon: 'key-outline',
       iconColor: '#FFFFFF',
       iconBackground: '#8B5CF6',
@@ -252,7 +255,7 @@ export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRitual
     {
       key: 'membership-center',
       title: '会员中心',
-      subtitle: '9.9元/月，开通云上传与下载',
+      subtitle: '9.9元/30天，聊天和云端能力全部解锁',
       icon: 'card-outline',
       iconColor: '#FFFFFF',
       iconBackground: '#F59E0B',

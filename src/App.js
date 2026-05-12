@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, AppState, Text, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, AppState, Text, TouchableOpacity, Linking, ActivityIndicator, Platform } from 'react-native';
 import * as navigationResolver from './utils/resolveAppNavigation';
 import { SCREENS } from './utils/constants';
 import Calculator from './components/Calculator/Calculator';
@@ -14,7 +14,8 @@ import UnlockPinSettings from './components/Settings/UnlockPinSettings';
 import { clearKickoutReason, clearSession, getKickoutReason, lockApp, restoreAuthSession, signOut } from './services/AuthService';
 import { listConversations } from './services/ChatRepository';
 import { fetchAppVersionConfig, shouldForceUpdate } from './services/AppUpdateService';
-const { shouldLockToCalculator } = require('./utils/appLockPolicy');
+import { isActiveMembership, refreshMembershipStatus } from './services/MembershipService';
+const { shouldLockOnAppBlur, shouldLockToCalculator } = require('./utils/appLockPolicy');
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState(SCREENS.CALCULATOR);
@@ -25,27 +26,64 @@ export default function App() {
   const [forceUpdateConfig, setForceUpdateConfig] = useState(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [kickoutMessage, setKickoutMessage] = useState('');
+  const [membershipGateActive, setMembershipGateActive] = useState(false);
   const appState = useRef(AppState.currentState);
+
+  const showAuthedScreenForMembership = async (session) => {
+    let membership = session?.membership || null;
+    if (!membership) {
+      membership = await refreshMembershipStatus().catch(() => null);
+    }
+
+    if (isActiveMembership(membership)) {
+      setMembershipGateActive(false);
+      setCurrentScreen(SCREENS.CHAT_LIST);
+      return;
+    }
+
+    setMembershipGateActive(true);
+    setCurrentContact(null);
+    setRitualContact(null);
+    setCurrentScreen(SCREENS.MEMBERSHIP);
+  };
+
+  const ensureMembershipAccess = async () => {
+    const membership = await refreshMembershipStatus().catch(() => null);
+    if (isActiveMembership(membership)) {
+      setMembershipGateActive(false);
+      return true;
+    }
+
+    setMembershipGateActive(true);
+    setCurrentContact(null);
+    setRitualContact(null);
+    setCurrentScreen(SCREENS.MEMBERSHIP);
+    return false;
+  };
 
   useEffect(() => {
     let mounted = true;
 
-    fetchAppVersionConfig()
-      .then((config) => {
-        if (!mounted) {
-          return;
-        }
+    if (Platform.OS === 'web') {
+      setVersionCheckDone(true);
+    } else {
+      fetchAppVersionConfig()
+        .then((config) => {
+          if (!mounted) {
+            return;
+          }
 
-        if (shouldForceUpdate(config)) {
-          setForceUpdateConfig(config);
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (mounted) {
-          setVersionCheckDone(true);
-        }
-      });
+          if (shouldForceUpdate(config)) {
+            setForceUpdateConfig(config);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (mounted) {
+            setVersionCheckDone(true);
+          }
+        });
+    }
 
     restoreAuthSession()
       .then(async (session) => {
@@ -54,7 +92,12 @@ export default function App() {
         }
         const reason = await getKickoutReason();
         setKickoutMessage(reason || '');
-        setCurrentScreen(session ? SCREENS.CHAT_LIST : SCREENS.CALCULATOR);
+        if (session) {
+          await showAuthedScreenForMembership(session);
+        } else {
+          setMembershipGateActive(false);
+          setCurrentScreen(SCREENS.CALCULATOR);
+        }
       })
       .finally(() => {
         if (mounted) {
@@ -62,19 +105,31 @@ export default function App() {
         }
       });
 
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
+    const lockToCalculator = () => {
+      setCurrentContact(null);
+      setRitualContact(null);
+      setMembershipGateActive(false);
+      setCurrentScreen(SCREENS.CALCULATOR);
+      clearSession();
+    };
+
+    const stateSubscription = AppState.addEventListener('change', (nextAppState) => {
       if (shouldLockToCalculator(appState.current, nextAppState)) {
-        setCurrentContact(null);
-        setRitualContact(null);
-        setCurrentScreen(SCREENS.CALCULATOR);
-        clearSession();
+        lockToCalculator();
       }
       appState.current = nextAppState;
     });
 
+    const blurSubscription = Platform.OS === 'web' ? null : AppState.addEventListener('blur', () => {
+      if (shouldLockOnAppBlur(appState.current)) {
+        lockToCalculator();
+      }
+    });
+
     return () => {
       mounted = false;
-      subscription.remove();
+      stateSubscription.remove();
+      blurSubscription?.remove();
     };
   }, []);
 
@@ -82,30 +137,75 @@ export default function App() {
     const session = await restoreAuthSession();
     const reason = await getKickoutReason();
     setKickoutMessage(reason || '');
-    setCurrentScreen(session ? SCREENS.CHAT_LIST : SCREENS.AUTH);
+    if (session) {
+      await showAuthedScreenForMembership(session);
+    } else {
+      setMembershipGateActive(false);
+      setCurrentScreen(SCREENS.AUTH);
+    }
   };
   const handleLock = async () => {
     await lockApp();
     setCurrentContact(null);
     setRitualContact(null);
+    setMembershipGateActive(false);
     setKickoutMessage('');
     setCurrentScreen(SCREENS.CALCULATOR);
   };
-  const handleOpenChat = (targetOrScreen, params) => {
+  const handleOpenChat = async (targetOrScreen, params) => {
+    if (!(await ensureMembershipAccess())) {
+      return;
+    }
     const target = navigationResolver.resolveAppNavigationTarget(targetOrScreen, params);
     setCurrentContact(target.contact);
     setCurrentScreen(target.screen);
   };
   const handleBack = () => { setCurrentContact(null); setCurrentScreen(SCREENS.CHAT_LIST); };
-  const handleOpenCloud = () => { setCurrentScreen(SCREENS.CLOUD); };
+  const handleOpenCloud = async () => {
+    if (await ensureMembershipAccess()) {
+      setCurrentScreen(SCREENS.CLOUD);
+    }
+  };
   const handleBackFromCloud = () => { setCurrentScreen(SCREENS.CHAT_LIST); };
-  const handleOpenMembership = () => { setCurrentScreen(SCREENS.MEMBERSHIP); };
-  const handleBackFromMembership = () => { setCurrentScreen(SCREENS.CHAT_LIST); };
-  const handleOpenPhoneSettings = () => { setCurrentScreen(SCREENS.PHONE_SETTINGS); };
+  const handleOpenMembership = () => {
+    setMembershipGateActive(false);
+    setCurrentScreen(SCREENS.MEMBERSHIP);
+  };
+  const handleBackFromMembership = () => {
+    if (membershipGateActive) {
+      setCurrentScreen(SCREENS.CALCULATOR);
+      return;
+    }
+    setCurrentScreen(SCREENS.CHAT_LIST);
+  };
+  const handleMembershipActive = () => {
+    setMembershipGateActive(false);
+    setCurrentScreen(SCREENS.CHAT_LIST);
+    setChatListRefreshToken((value) => value + 1);
+  };
+  const handleSwitchMembershipAccount = async () => {
+    await signOut();
+    setCurrentContact(null);
+    setRitualContact(null);
+    setMembershipGateActive(false);
+    setCurrentScreen(SCREENS.AUTH);
+  };
+  const handleOpenPhoneSettings = async () => {
+    if (await ensureMembershipAccess()) {
+      setCurrentScreen(SCREENS.PHONE_SETTINGS);
+    }
+  };
   const handleBackFromPhoneSettings = () => { setCurrentScreen(SCREENS.CHAT_LIST); };
-  const handleOpenUnlockPinSettings = () => { setCurrentScreen(SCREENS.UNLOCK_PIN_SETTINGS); };
+  const handleOpenUnlockPinSettings = async () => {
+    if (await ensureMembershipAccess()) {
+      setCurrentScreen(SCREENS.UNLOCK_PIN_SETTINGS);
+    }
+  };
   const handleBackFromUnlockPinSettings = () => { setCurrentScreen(SCREENS.CHAT_LIST); };
-  const handleOpenRituals = (contact) => {
+  const handleOpenRituals = async (contact) => {
+    if (!(await ensureMembershipAccess())) {
+      return;
+    }
     setRitualContact(contact);
     setCurrentScreen(SCREENS.RITUALS);
   };
@@ -146,10 +246,10 @@ export default function App() {
     }
   };
 
-  const handleAuthed = async () => {
+  const handleAuthed = async (session) => {
     await clearKickoutReason();
     setKickoutMessage('');
-    setCurrentScreen(SCREENS.CHAT_LIST);
+    await showAuthedScreenForMembership(session);
     setChatListRefreshToken((value) => value + 1);
   };
 
@@ -184,7 +284,7 @@ export default function App() {
       {currentScreen === SCREENS.PHONE_SETTINGS && <PhoneSettings onBack={handleBackFromPhoneSettings} onLock={handleLock} />}
       {currentScreen === SCREENS.CHAT_WINDOW && currentContact && <ChatWindow route={{ params: { contact: currentContact } }} onBack={handleBack} onLock={handleLock} />}
       {currentScreen === SCREENS.CLOUD && <CloudRecords onBack={handleBackFromCloud} onLock={handleLock} onRestoreToLocal={handleRestoreToLocal} onOpenMembership={handleOpenMembership} />}
-      {currentScreen === SCREENS.MEMBERSHIP && <MembershipCenter onBack={handleBackFromMembership} onLock={handleLock} />}
+      {currentScreen === SCREENS.MEMBERSHIP && <MembershipCenter onBack={handleBackFromMembership} onLock={handleLock} onMembershipActive={handleMembershipActive} onSwitchAccount={handleSwitchMembershipAccount} isRequired={membershipGateActive} />}
       {currentScreen === SCREENS.UNLOCK_PIN_SETTINGS && <UnlockPinSettings onBack={handleBackFromUnlockPinSettings} onLock={handleLock} />}
       {currentScreen === SCREENS.RITUALS && ritualContact && <RitualCenter contact={ritualContact} onBack={handleBackFromRituals} onLock={handleLock} />}
     </View>

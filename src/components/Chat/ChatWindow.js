@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import MessageBubble from './MessageBubble';
 import BurnModal from './BurnModal';
+import StickerPickerModal from './StickerPickerModal';
 import { listConversationMessages, removeConversationMessage, sendConversationMessage } from '../../services/ChatRepository';
 import { destroyExpiredMessages, BURN_OPTIONS } from '../../services/MessageService';
 import { syncMessageToCloud } from '../../services/CloudService';
@@ -22,8 +23,12 @@ export default function ChatWindow({ route, onBack, onLock }) {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const recordingTimer = useRef(null);
+  const recordingRef = useRef(null);
+  const recordingStartedAt = useRef(0);
+  const voicePressActive = useRef(false);
   const sound = useRef(new Audio.Sound());
   const [showMore, setShowMore] = useState(false);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
 
   const loadMessages = useCallback(async () => {
@@ -49,11 +54,11 @@ export default function ChatWindow({ route, onBack, onLock }) {
   }, [contact.id, loadMessages]);
 
   useEffect(() => () => {
-    if (recording) {
-      recording.stopAndUnloadAsync().catch(() => {});
+    if (recordingRef.current) {
+      recordingRef.current.stopAndUnloadAsync().catch(() => {});
     }
     sound.current.unloadAsync().catch(() => {});
-  }, [recording]);
+  }, []);
 
   const syncSavedMessageToCloud = async (saved) => {
     try {
@@ -65,6 +70,8 @@ export default function ChatWindow({ route, onBack, onLock }) {
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
+    setShowMore(false);
+    setShowStickerPicker(false);
     const msg = { text: inputText.trim(), type: 'text', isMe: true };
     if (burnOption) {
       msg.burnAfterRead = true;
@@ -84,6 +91,7 @@ export default function ChatWindow({ route, onBack, onLock }) {
   const handleSelectImage = async () => {
     try {
       setShowMore(false);
+      setShowStickerPicker(false);
       const p = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!p.granted) { Alert.alert('权限不足', '请在设置中开启相册权限'); return; }
       const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
@@ -102,6 +110,7 @@ export default function ChatWindow({ route, onBack, onLock }) {
   const handleTakePhoto = async () => {
     try {
       setShowMore(false);
+      setShowStickerPicker(false);
       const p = await ImagePicker.requestCameraPermissionsAsync();
       if (!p.granted) { Alert.alert('权限不足', '请在设置中开启相机权限'); return; }
       const r = await ImagePicker.launchCameraAsync({ quality: 0.8 });
@@ -118,64 +127,99 @@ export default function ChatWindow({ route, onBack, onLock }) {
   };
 
   const startRecording = async () => {
+    if (recordingRef.current || isRecording) {
+      return;
+    }
+
     try {
-      await Audio.requestPermissionsAsync();
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('录音失败', '请允许麦克风权限后再试');
+        return;
+      }
       await Audio.setAudioModeAsync({ allowsRecording: true, playsInSilentModeIOS: true });
       const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
+      recordingStartedAt.current = Date.now();
       setRecording(recording);
       setRecordingDuration(0);
       setIsRecording(true);
       setShowMore(false);
+      setShowStickerPicker(false);
       recordingTimer.current = setInterval(() => setRecordingDuration(prev => prev + 1), 1000);
-    } catch { Alert.alert('录音失败', '无法启动录音'); }
+      if (!voicePressActive.current) {
+        stopRecording();
+      }
+    } catch (error) {
+      recordingRef.current = null;
+      recordingStartedAt.current = 0;
+      setRecording(null);
+      setIsRecording(false);
+      Alert.alert('录音失败', error.message || '无法启动录音');
+    }
   };
 
   const stopRecording = async () => {
-    if (!recording) return;
+    const activeRecording = recordingRef.current;
+    if (!activeRecording) return;
     try {
       clearInterval(recordingTimer.current);
       setIsRecording(false);
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
+      recordingRef.current = null;
+      await activeRecording.stopAndUnloadAsync();
+      const uri = activeRecording.getURI();
+      const elapsedSeconds = Math.max(1, Math.round((Date.now() - recordingStartedAt.current) / 1000));
       setRecording(null);
       setRecordingDuration(0);
-      if (uri && recordingDuration > 0) {
-        const msg = { uri, type: 'voice', duration: recordingDuration, isMe: true };
+      recordingStartedAt.current = 0;
+      if (uri) {
+        const msg = { uri, type: 'voice', duration: elapsedSeconds, isMe: true };
         if (burnOption) { msg.burnAfterRead = true; msg.burnDuration = BURN_OPTIONS[burnOption]; }
         const saved = await sendConversationMessage(contact, msg);
         setMessages(prev => [...prev, saved]);
         await syncSavedMessageToCloud(saved);
       }
     } catch (error) {
+      recordingRef.current = null;
+      recordingStartedAt.current = 0;
       setRecording(null);
       setRecordingDuration(0);
+      setIsRecording(false);
       Alert.alert('发送失败', error.message || '无法保存语音到本地服务器');
     }
   };
 
   const cancelRecording = async () => {
-    if (!recording) return;
+    const activeRecording = recordingRef.current;
+    if (!activeRecording) return;
     try {
       clearInterval(recordingTimer.current);
       setIsRecording(false);
-      await recording.stopAndUnloadAsync();
+      recordingRef.current = null;
+      recordingStartedAt.current = 0;
+      await activeRecording.stopAndUnloadAsync();
       setRecording(null);
       setRecordingDuration(0);
     } catch {
+      recordingRef.current = null;
+      recordingStartedAt.current = 0;
       setRecording(null);
       setRecordingDuration(0);
+      setIsRecording(false);
     }
   };
 
-  const handleVoiceLongPress = async () => {
+  const handleVoicePressIn = async () => {
     if (!voiceMode || recording || isRecording) {
       return;
     }
+    voicePressActive.current = true;
     await startRecording();
   };
 
-  const handleLongPressOut = () => {
-    if (voiceMode && isRecording && recording) {
+  const handleVoicePressOut = () => {
+    voicePressActive.current = false;
+    if (voiceMode && recordingRef.current) {
       stopRecording();
     }
   };
@@ -200,6 +244,32 @@ export default function ChatWindow({ route, onBack, onLock }) {
       <MessageBubble message={item} isMe={item.isMe} />
     </TouchableOpacity>
   );
+
+  const handleSelectSticker = async (sticker) => {
+    if (!sticker) {
+      return;
+    }
+
+    try {
+      setShowStickerPicker(false);
+      setShowMore(false);
+      const msg = {
+        content: sticker.id,
+        stickerId: sticker.id,
+        type: 'sticker',
+        isMe: true,
+      };
+      if (burnOption) {
+        msg.burnAfterRead = true;
+        msg.burnDuration = BURN_OPTIONS[burnOption];
+      }
+      const saved = await sendConversationMessage(contact, msg);
+      setMessages(prev => [...prev, saved]);
+      await syncSavedMessageToCloud(saved);
+    } catch (error) {
+      Alert.alert('发送失败', error.message || '无法保存表情包到本地服务器');
+    }
+  };
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
@@ -239,6 +309,7 @@ export default function ChatWindow({ route, onBack, onLock }) {
             style={styles.iconButton}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={() => {
+              setShowStickerPicker(false);
               setShowMore(false);
               setVoiceMode((current) => {
                 const next = !current;
@@ -256,9 +327,8 @@ export default function ChatWindow({ route, onBack, onLock }) {
             {voiceMode ? (
               <TouchableOpacity
                 activeOpacity={0.85}
-                delayLongPress={180}
-                onLongPress={handleVoiceLongPress}
-                onPressOut={handleLongPressOut}
+                onPressIn={handleVoicePressIn}
+                onPressOut={handleVoicePressOut}
                 style={[styles.voicePressArea, isRecording && styles.voicePressAreaActive]}
               >
                 <Text style={[styles.voicePressText, isRecording && styles.voicePressTextActive]}>{isRecording ? '松开发送' : '按住 说话'}</Text>
@@ -274,13 +344,16 @@ export default function ChatWindow({ route, onBack, onLock }) {
               />
             )}
           </View>
-          {!voiceMode && inputText.trim() ? (
-            <TouchableOpacity style={styles.sendBtn} onPress={handleSend}><Text style={styles.sendText}>发送</Text></TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.plusBtn} onPress={() => setShowMore((current) => !current)} accessibilityLabel="打开更多功能">
-              <Ionicons name={showMore ? 'close-outline' : 'add'} size={20} color="#666666" />
-            </TouchableOpacity>
-          )}
+          {!voiceMode ? (
+            <>
+              {inputText.trim() ? (
+                <TouchableOpacity style={styles.sendBtn} onPress={handleSend}><Text style={styles.sendText}>发送</Text></TouchableOpacity>
+              ) : null}
+              <TouchableOpacity style={styles.plusBtn} onPress={() => { setShowStickerPicker(false); setShowMore((current) => !current); }} accessibilityLabel="打开更多功能">
+                <Ionicons name={showMore ? 'close-outline' : 'add'} size={20} color="#666666" />
+              </TouchableOpacity>
+            </>
+          ) : null}
         </View>
       )}
 
@@ -295,9 +368,15 @@ export default function ChatWindow({ route, onBack, onLock }) {
               <View style={styles.moreIcon}><Ionicons name="camera-outline" size={26} color="#585858" /></View>
               <Text style={styles.moreLabel}>拍照</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.moreItem} onPress={() => { setShowMore(false); setShowStickerPicker(true); }} accessibilityLabel="打开表情包选择">
+              <View style={styles.moreIcon}><Ionicons name="happy-outline" size={26} color="#585858" /></View>
+              <Text style={styles.moreLabel}>表情包</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
+
+      <StickerPickerModal visible={showStickerPicker} onClose={() => setShowStickerPicker(false)} onSelect={handleSelectSticker} />
 
       {messageAction && (
         <TouchableOpacity style={styles.actionOverlay} activeOpacity={1} onPress={() => setMessageAction(null)}>

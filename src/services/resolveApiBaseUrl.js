@@ -14,8 +14,8 @@ function pickConfiguredApiBaseUrl(options = {}) {
   const envBaseUrl = normalizeUrl(options.envBaseUrl);
   const appConfigBaseUrl = normalizeUrl(options.appConfigBaseUrl);
 
-  if (options.platform === 'web' && appConfigBaseUrl) {
-    return appConfigBaseUrl;
+  if (options.platform === 'web') {
+    return envBaseUrl || appConfigBaseUrl || 'http://localhost:3001/api/v1';
   }
 
   if (!options.isDev && appConfigBaseUrl) {

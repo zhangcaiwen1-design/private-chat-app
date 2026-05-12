@@ -12,7 +12,7 @@ test('uses app config api url outside development builds', () => {
   assert.equal(resolved, 'https://privatechat.yifan1.com/api/v1');
 });
 
-test('keeps web builds on app config api url during development', () => {
+test('allows explicit env api url override on web builds', () => {
   const resolved = pickConfiguredApiBaseUrl({
     envBaseUrl: 'http://192.168.1.114:3001/api/v1',
     appConfigBaseUrl: 'https://privatechat.yifan1.com/api/v1',
@@ -20,7 +20,7 @@ test('keeps web builds on app config api url during development', () => {
     platform: 'web',
   });
 
-  assert.equal(resolved, 'https://privatechat.yifan1.com/api/v1');
+  assert.equal(resolved, 'http://192.168.1.114:3001/api/v1');
 });
 
 test('allows env api url override on native development builds', () => {

@@ -36,6 +36,7 @@ function mapMessage(message) {
     burnAfterRead: message.burn_after_read,
     burnDuration: message.burn_duration,
     readAt: message.read_at,
+    stickerId: message.type === 'sticker' ? message.content : undefined,
   };
 }
 
@@ -80,7 +81,7 @@ export async function listConversationMessages(contactId, limit = 50) {
 export async function sendConversationMessage(contact, message) {
   const userId = await getUserId();
   const type = message.type || 'text';
-  const content = type === 'text' ? message.text : message.uri;
+  const content = type === 'text' ? message.text : message.stickerId || message.content || message.uri;
   const result = await ApiService.sendMessage(
     contact.id,
     contact.conversationId,

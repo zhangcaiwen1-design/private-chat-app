@@ -21,6 +21,8 @@ function loadAuthService() {
     logout: 0,
     bindLocalData: 0,
     clearLocalData: 0,
+    login: [],
+    register: [],
     updatePassword: [],
     setAuthToken: [],
     clearUserProfile: 0,
@@ -59,7 +61,7 @@ function loadAuthService() {
     .replace("import { clearUserProfile, getDeviceId, setUserProfile, setUserUnlockPin } from './UserService';", "const { clearUserProfile, getDeviceId, setUserProfile, setUserUnlockPin } = globalThis.__deps.UserService;")
     .replace("import { setMembershipTier } from './MembershipService';", "const { setMembershipTier } = globalThis.__deps.MembershipService;")
     .replace(/export async function /g, 'async function ')
-    .concat('\nmodule.exports = { getStoredAuthToken, persistAuthSession, restoreAuthSession, getKickoutReason, clearKickoutReason, clearSession, signOut, registerWithPhone, loginWithPhone, updatePassword, lockApp };');
+    .concat('\nmodule.exports = { getStoredAuthToken, persistAuthSession, restoreAuthSession, getKickoutReason, clearKickoutReason, clearSession, signOut, registerWithPhone, loginWithPhone, updateUnlockPin, updatePassword, lockApp };');
 
   sandbox.globalThis = {
     __deps: {
@@ -69,8 +71,14 @@ function loadAuthService() {
         logout: async () => {
           calls.logout += 1;
         },
-        register: async () => ({ token: 'token-2', user: { id: 'user-1', nickname: '测试用户', phone: '13800000000', avatar_url: null }, membership: { tier: 'free' } }),
-        login: async () => ({ token: 'token-2', user: { id: 'user-1', nickname: '测试用户', phone: '13800000000', avatar_url: null }, membership: { tier: 'free' } }),
+        register: async (payload) => {
+          calls.register.push(payload);
+          return { token: 'token-2', user: { id: 'user-1', nickname: '测试用户', phone: '13800000000', avatar_url: null }, membership: { tier: 'free' } };
+        },
+        login: async (phone, password, deviceId) => {
+          calls.login.push({ phone, password, deviceId });
+          return { token: 'token-2', user: { id: 'user-1', nickname: '测试用户', phone: '13800000000', avatar_url: null }, membership: { tier: 'free' } };
+        },
         getCurrentUser: async () => ({ user: { id: 'user-1', nickname: '测试用户', phone: '13800000000', avatar_url: null }, membership: { tier: 'free' } }),
         bindLocalData: async () => {
           calls.bindLocalData += 1;
@@ -142,15 +150,18 @@ test('signOut clears auth session and notifies backend logout', async () => {
   assert.deepEqual(calls.setMembershipTier, ['free']);
 });
 
-test('registerWithPhone auto-binds local data on same device without extra migration choice', async () => {
+test('registerWithPhone auto-binds local data and keeps unlock pin local', async () => {
   const { service, calls } = loadAuthService();
 
   await service.registerWithPhone({
     phone: '13800000000',
-    password: '123456',
-    nickname: '测试用户',
+    unlockPin: '123456',
   });
 
+  assert.equal(calls.register[0].phone, '13800000000');
+  assert.equal(calls.register[0].avatar_url, null);
+  assert.equal(calls.register[0].device_id, 'device-1');
+  assert.equal(Object.hasOwn(calls.register[0], 'password'), false);
   assert.equal(calls.bindLocalData, 1);
   assert.equal(calls.clearLocalData, 0);
   assert.equal(calls.setUserProfile[0].userId, 'user-1');
@@ -160,26 +171,26 @@ test('registerWithPhone auto-binds local data on same device without extra migra
   assert.equal(calls.setUserProfile[0].unlockPin, '123456');
 });
 
-test('loginWithPhone syncs local unlock pin to the login password', async () => {
+test('loginWithPhone does not overwrite the local calculator unlock pin', async () => {
   const { service, calls } = loadAuthService();
 
   await service.loginWithPhone({
     phone: '13800000000',
-    password: '654321',
   });
 
+  assert.deepEqual(calls.login, [{ phone: '13800000000', password: undefined, deviceId: 'device-1' }]);
   assert.equal(calls.setUserProfile[0].userId, 'user-1');
   assert.equal(calls.setUserProfile[0].name, '测试用户');
   assert.equal(calls.setUserProfile[0].phone, '13800000000');
   assert.equal(calls.setUserProfile[0].avatarUrl, null);
-  assert.equal(calls.setUserProfile[0].unlockPin, '654321');
+  assert.equal(calls.setUserProfile[0].unlockPin, undefined);
 });
 
-test('updatePassword syncs account password and local unlock pin together', async () => {
+test('updateUnlockPin only changes the local calculator unlock pin', async () => {
   const { service, calls } = loadAuthService();
 
-  await service.updatePassword('654321');
+  await service.updateUnlockPin('654321');
 
-  assert.deepEqual(calls.updatePassword, ['654321']);
+  assert.deepEqual(calls.updatePassword, []);
   assert.deepEqual(calls.setUserProfile, [{ unlockPin: '654321' }]);
 });

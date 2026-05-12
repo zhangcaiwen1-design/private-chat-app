@@ -5,7 +5,6 @@ const UNLOCK_PIN = process.env.EXPO_PUBLIC_APP_UNLOCK_PIN;
 const UI_BASE_URL = process.env.UI_BASE_URL || 'http://127.0.0.1:8082';
 const TEST_PHONE = `138${Date.now().toString().slice(-8)}`;
 const TEST_PASSWORD = '123456';
-const TEST_NICKNAME = '新用户';
 
 if (!UNLOCK_PIN) {
   throw new Error('缺少 EXPO_PUBLIC_APP_UNLOCK_PIN 环境变量');
@@ -16,7 +15,7 @@ async function unlock(page) {
     await page.getByText(digit, { exact: true }).click();
   }
   await page.getByText('=', { exact: true }).click();
-  await page.getByText('手机号登录 / 注册', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByText('手机号绑定', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
 }
 
 async function main() {
@@ -27,11 +26,8 @@ async function main() {
   await unlock(page);
 
   await page.getByPlaceholder('输入手机号').fill(TEST_PHONE);
-  await page.getByText('继续', { exact: true }).click();
-  await page.getByPlaceholder('输入昵称').waitFor({ state: 'visible', timeout: 10000 });
-  await page.getByPlaceholder('输入昵称').fill(TEST_NICKNAME);
-  await page.getByPlaceholder('设置密码').fill(TEST_PASSWORD);
-  await page.getByText('注册并继续', { exact: true }).click();
+  await page.getByPlaceholder('设置计算器进入密码').fill(TEST_PASSWORD);
+  await page.getByText('保存并进入', { exact: true }).click();
 
   const migrationPrompt = page.getByText('是否保留这台手机原有聊天记录？', { exact: true });
   if (await migrationPrompt.count()) {

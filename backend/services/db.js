@@ -93,6 +93,121 @@ function ensureCloudBackupSchema(database) {
   `);
 }
 
+function tableSupportsStickerType(database, tableName) {
+  const row = database.prepare(`
+    SELECT sql FROM sqlite_master
+    WHERE type = 'table' AND name = ?
+  `).get(tableName);
+  return !row?.sql || row.sql.includes("'sticker'");
+}
+
+function rebuildMessagesForStickerType(database) {
+  const legacyTable = `messages_before_sticker_${Date.now()}`;
+  database.exec('PRAGMA foreign_keys = OFF');
+  try {
+    database.exec(`
+      ALTER TABLE messages RENAME TO ${legacyTable};
+
+      CREATE TABLE messages (
+        id TEXT PRIMARY KEY,
+        contact_id TEXT NOT NULL,
+        conversation_id TEXT NOT NULL,
+        client_id TEXT NOT NULL,
+        direction TEXT NOT NULL CHECK (direction IN ('in', 'out')),
+        type TEXT NOT NULL CHECK (type IN ('text', 'image', 'voice', 'sticker')),
+        content TEXT NOT NULL,
+        duration INTEGER,
+        burn_after_read INTEGER NOT NULL DEFAULT 0,
+        burn_duration INTEGER,
+        read_at INTEGER,
+        sync_state TEXT NOT NULL DEFAULT 'local_only',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        deleted_at INTEGER,
+        FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+      );
+
+      INSERT INTO messages (
+        id, contact_id, conversation_id, client_id, direction, type, content, duration,
+        burn_after_read, burn_duration, read_at, sync_state, created_at, updated_at, deleted_at
+      )
+      SELECT
+        id, contact_id, conversation_id, client_id, direction, type, content, duration,
+        burn_after_read, burn_duration, read_at, sync_state, created_at, updated_at, deleted_at
+      FROM ${legacyTable};
+
+      DROP TABLE ${legacyTable};
+
+      CREATE INDEX IF NOT EXISTS idx_messages_contact_created
+        ON messages(contact_id, created_at);
+
+      CREATE INDEX IF NOT EXISTS idx_messages_client_id
+        ON messages(client_id);
+    `);
+  } finally {
+    database.exec('PRAGMA foreign_keys = ON');
+  }
+}
+
+function rebuildCloudBackupsForStickerType(database) {
+  const legacyTable = `cloud_backups_before_sticker_${Date.now()}`;
+  database.exec('PRAGMA foreign_keys = OFF');
+  try {
+    database.exec(`
+      ALTER TABLE cloud_backups RENAME TO ${legacyTable};
+
+      CREATE TABLE cloud_backups (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT NOT NULL DEFAULT 'local-user',
+        contact_id TEXT NOT NULL,
+        conversation_id TEXT,
+        message_id TEXT,
+        contact_name TEXT NOT NULL,
+        contact_phone TEXT,
+        peer_user_id TEXT,
+        type TEXT NOT NULL CHECK (type IN ('text', 'image', 'voice', 'sticker')),
+        content TEXT NOT NULL,
+        duration INTEGER,
+        source TEXT NOT NULL DEFAULT 'chat_message',
+        cloud_url TEXT,
+        sync_state TEXT NOT NULL DEFAULT 'local_only',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        restored_at INTEGER,
+        FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+      );
+
+      INSERT INTO cloud_backups (
+        id, owner_user_id, contact_id, conversation_id, message_id, contact_name, contact_phone, peer_user_id,
+        type, content, duration, source, cloud_url, sync_state, created_at, updated_at, restored_at
+      )
+      SELECT
+        id, owner_user_id, contact_id, conversation_id, message_id, contact_name, contact_phone, peer_user_id,
+        type, content, duration, source, cloud_url, sync_state, created_at, updated_at, restored_at
+      FROM ${legacyTable};
+
+      DROP TABLE ${legacyTable};
+
+      CREATE INDEX IF NOT EXISTS idx_cloud_backups_owner_created
+        ON cloud_backups(owner_user_id, created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_cloud_backups_contact_created
+        ON cloud_backups(contact_id, created_at DESC);
+    `);
+  } finally {
+    database.exec('PRAGMA foreign_keys = ON');
+  }
+}
+
+function ensureStickerTypeSchema(database) {
+  if (!tableSupportsStickerType(database, 'messages')) {
+    rebuildMessagesForStickerType(database);
+  }
+  if (!tableSupportsStickerType(database, 'cloud_backups')) {
+    rebuildCloudBackupsForStickerType(database);
+  }
+}
+
 function normalizeContact(row) {
   return {
     id: row.id,
@@ -119,6 +234,7 @@ function normalizeMessage(row) {
     content: row.content,
     text: row.type === 'text' ? row.content : undefined,
     uri: row.type === 'image' || row.type === 'voice' ? row.content : undefined,
+    stickerId: row.type === 'sticker' ? row.content : undefined,
     duration: row.duration,
     isMe: row.direction === 'out',
     direction: row.direction,
@@ -147,6 +263,7 @@ function normalizeCloudBackup(row) {
     content: row.content,
     text: row.type === 'text' ? row.content : undefined,
     uri: row.type === 'image' || row.type === 'voice' ? row.content : undefined,
+    stickerId: row.type === 'sticker' ? row.content : undefined,
     duration: row.duration,
     source: row.source,
     cloud_url: row.cloud_url,
@@ -181,15 +298,16 @@ function sanitizeDemoContacts(database) {
           ELSE phone
         END,
         last_message = CASE
-          WHEN last_message = '[voice]' THEN '刚给你留了条语音'
-          WHEN last_message = '[image]' THEN '刚发你一张图片'
-          WHEN last_message LIKE '自动上云 %' THEN '到了给我发个消息'
-          WHEN last_message LIKE '继续 private-calculator-chat%' THEN '晚点细聊，先别回这里'
+          WHEN last_message = '[voice]' THEN '\u521a\u7ed9\u4f60\u7559\u4e86\u6761\u8bed\u97f3'
+          WHEN last_message = '[image]' THEN '\u521a\u53d1\u4f60\u4e00\u5f20\u56fe\u7247'
+          WHEN last_message = '[sticker]' THEN '\u521a\u7ed9\u4f60\u53d1\u4e86\u4e2a\u8868\u60c5\u5305'
+          WHEN last_message LIKE '\u81ea\u52a8\u4e0a\u4e91 %' THEN '\u5230\u4e86\u7ed9\u6211\u53d1\u4e2a\u6d88\u606f'
+          WHEN last_message LIKE '\u7ee7\u7eed private-calculator-chat%' THEN '\u665a\u70b9\u7ec6\u804a\uff0c\u5148\u522b\u56de\u8fd9\u91cc'
           ELSE last_message
         END
     WHERE name IN ('呵呵', '哈哈', '������ϵ��', '阿宁')
        OR phone IN ('10086', '11111111111')
-       OR last_message IN ('[voice]', '[image]')
+       OR last_message IN ('[voice]', '[image]', '[sticker]')
        OR last_message LIKE '自动上云 %'
        OR last_message LIKE '继续 private-calculator-chat%'
   `).run();
@@ -224,7 +342,7 @@ function initDatabase() {
       conversation_id TEXT NOT NULL,
       client_id TEXT NOT NULL,
       direction TEXT NOT NULL CHECK (direction IN ('in', 'out')),
-      type TEXT NOT NULL CHECK (type IN ('text', 'image', 'voice')),
+      type TEXT NOT NULL CHECK (type IN ('text', 'image', 'voice', 'sticker')),
       content TEXT NOT NULL,
       duration INTEGER,
       burn_after_read INTEGER NOT NULL DEFAULT 0,
@@ -246,7 +364,7 @@ function initDatabase() {
       contact_name TEXT NOT NULL,
       contact_phone TEXT,
       peer_user_id TEXT,
-      type TEXT NOT NULL CHECK (type IN ('text', 'image', 'voice')),
+      type TEXT NOT NULL CHECK (type IN ('text', 'image', 'voice', 'sticker')),
       content TEXT NOT NULL,
       duration INTEGER,
       source TEXT NOT NULL DEFAULT 'chat_message',
@@ -391,6 +509,7 @@ function initDatabase() {
 
   ensureSyncReadySchema(database);
   ensureCloudBackupSchema(database);
+  ensureStickerTypeSchema(database);
   renameSeedContact(database);
   sanitizeDemoContacts(database);
   seedContacts(database);
@@ -1210,33 +1329,18 @@ function rejectMembershipOrder(orderId, reviewer = 'manual-admin', reason = '') 
   return normalizeMembershipOrder(database.prepare('SELECT * FROM membership_orders WHERE id = ?').get(orderId));
 }
 
-const EVENT_TIMEZONE_OFFSET_MS = 8 * 60 * 60 * 1000;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function getEventDate(timestamp) {
-  return new Date(Number(timestamp) + EVENT_TIMEZONE_OFFSET_MS);
-}
-
 function formatEventDay(timestamp) {
-  const date = getEventDate(timestamp);
-  const year = date.getUTCFullYear();
-  const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getUTCDate()}`.padStart(2, '0');
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
 function startOfDay(timestamp) {
-  const date = getEventDate(timestamp);
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - EVENT_TIMEZONE_OFFSET_MS;
-}
-
-function parseEventDayStart(eventDay) {
-  const [year, month, day] = String(eventDay).split('-').map(Number);
-  return Date.UTC(year, month - 1, day) - EVENT_TIMEZONE_OFFSET_MS;
-}
-
-function getEventHour(timestamp) {
-  return getEventDate(timestamp).getUTCHours();
+  const date = new Date(timestamp);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
 }
 
 function normalizeRitualMilestone(row) {
@@ -1323,7 +1427,7 @@ function updateRitualStreak({ ownerUserId, contactId, streakType, eventAt }, dat
     return existing;
   }
 
-  const diffDays = Math.round((startOfDay(eventAt) - parseEventDayStart(existing.last_event_day)) / DAY_MS);
+  const diffDays = Math.round((startOfDay(eventAt) - startOfDay(new Date(existing.last_event_day).getTime())) / (24 * 60 * 60 * 1000));
   const currentDays = diffDays === 1 ? existing.current_days + 1 : 1;
   const bestDays = Math.max(existing.best_days, currentDays);
 
@@ -1381,7 +1485,7 @@ function recordTextMessageRitual({ ownerUserId, contactId, conversationId, conte
   `).all(contactId, eventAt);
 
   const lateNightOnly = lateNightMessages.filter((item) => {
-    const hour = getEventHour(item.created_at);
+    const hour = new Date(item.created_at).getHours();
     return hour >= 23 || hour <= 3;
   });
 

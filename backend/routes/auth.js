@@ -1,6 +1,6 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const { hashPassword, issueSessionForUser, loginWithPhonePassword, logoutSession, sanitizeAccountUser } = require('../services/auth');
+const { hashPassword, issueSessionForUser, loginWithPhone, logoutSession, sanitizeAccountUser } = require('../services/auth');
 const { requireCurrentUser } = require('../services/currentUser');
 const { createAccountUser, findAccountUserByPhone, updateAccountUserProfile, updateAccountUserPassword, bindLegacyLocalDataToUser, clearLegacyLocalDataForUser, getMembershipSnapshot } = require('../services/db');
 
@@ -28,11 +28,11 @@ router.post('/phone/lookup', (req, res) => {
 router.post('/register', (req, res) => {
   const phone = String(req.body.phone || '').trim();
   const password = String(req.body.password || '').trim();
-  const nickname = String(req.body.nickname || '').trim();
+  const nickname = String(req.body.nickname || '').trim() || `用户${phone.slice(-4)}`;
   const avatarUrl = req.body.avatar_url ? String(req.body.avatar_url).trim() : null;
   const deviceId = String(req.body.device_id || '').trim();
 
-  if (!phone || !password || !nickname || !deviceId) {
+  if (!phone || !deviceId) {
     return res.status(400).json({ error: '缺少必要参数' });
   }
   if (findAccountUserByPhone(phone)) {
@@ -42,7 +42,7 @@ router.post('/register', (req, res) => {
   const user = createAccountUser({
     id: uuidv4(),
     phone,
-    passwordHash: hashPassword(password),
+    passwordHash: hashPassword(password || uuidv4()),
     nickname,
     avatarUrl,
   });
@@ -52,16 +52,15 @@ router.post('/register', (req, res) => {
 
 router.post('/login', (req, res) => {
   const phone = String(req.body.phone || '').trim();
-  const password = String(req.body.password || '').trim();
   const deviceId = String(req.body.device_id || '').trim();
 
-  if (!phone || !password || !deviceId) {
+  if (!phone || !deviceId) {
     return res.status(400).json({ error: '缺少必要参数' });
   }
 
-  const result = loginWithPhonePassword(phone, password, deviceId);
+  const result = loginWithPhone(phone, deviceId);
   if (!result) {
-    return res.status(401).json({ error: '手机号或密码错误' });
+    return res.status(401).json({ error: '手机号未注册' });
   }
 
   return res.json({ token: result.token, user: result.user, membership: getMembershipSnapshot(result.user.id) });

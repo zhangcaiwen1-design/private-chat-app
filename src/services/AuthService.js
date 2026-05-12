@@ -46,6 +46,7 @@ export async function restoreAuthSession() {
   const token = await getStoredAuthToken();
   if (!token) {
     ApiService.setAuthToken(null);
+    await clearKickoutReason();
     return null;
   }
 
@@ -69,7 +70,7 @@ export async function restoreAuthSession() {
     await clearSession();
     await clearAuthState({ preserveKickoutReason: !isRevoked });
     if (isRevoked) {
-      await AsyncStorage.setItem(AUTH_KICKOUT_KEY, '账号已在其他设备登录');
+      await AsyncStorage.setItem(AUTH_KICKOUT_KEY, '');
     }
     return null;
   }
@@ -118,16 +119,24 @@ export async function signOut() {
   await clearAuthState();
 }
 
-export async function registerWithPhone({ phone, password, nickname, avatarUrl = null }) {
+export async function registerWithPhone({ phone, unlockPin, nickname, avatarUrl = null }) {
+  const nextUnlockPin = String(unlockPin || '').trim();
+  if (!nextUnlockPin) {
+    throw new Error('密码不能为空');
+  }
+
   const deviceId = await getDeviceId();
-  const result = await ApiService.register({
+  const payload = {
     phone,
-    password,
-    nickname,
     avatar_url: avatarUrl,
     device_id: deviceId,
-  });
-  const session = await persistAuthSession(result, { unlockPin: password });
+  };
+  if (nickname) {
+    payload.nickname = nickname;
+  }
+
+  const result = await ApiService.register(payload);
+  const session = await persistAuthSession(result, { unlockPin: nextUnlockPin });
   await ApiService.bindLocalData();
   return session;
 }
@@ -135,14 +144,17 @@ export async function registerWithPhone({ phone, password, nickname, avatarUrl =
 export async function loginWithPhone({ phone, password }) {
   const deviceId = await getDeviceId();
   const result = await ApiService.login(phone, password, deviceId);
-  return persistAuthSession(result, { unlockPin: password });
+  return persistAuthSession(result);
+}
+
+export async function updateUnlockPin(unlockPin) {
+  const nextUnlockPin = String(unlockPin || '').trim();
+  if (!nextUnlockPin) {
+    throw new Error('密码不能为空');
+  }
+  await setUserUnlockPin(nextUnlockPin);
 }
 
 export async function updatePassword(password) {
-  const nextPassword = String(password || '').trim();
-  if (!nextPassword) {
-    throw new Error('密码不能为空');
-  }
-  await ApiService.updatePassword(nextPassword);
-  await setUserUnlockPin(nextPassword);
+  return updateUnlockPin(password);
 }

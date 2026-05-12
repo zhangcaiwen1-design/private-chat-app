@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getStickerById } from './stickerCatalog';
 
 const OTHER_AVATAR_COLORS = ['#D9C6A5', '#D2DDF3', '#DCD4F6', '#CDE8D0', '#F1D2C8'];
 
@@ -12,6 +13,7 @@ function resolveOtherAvatarStyle(seed = '') {
 
 export default function MessageBubble({ message, isMe, onPlayVoice }) {
   const [playing, setPlaying] = useState(false);
+  const sticker = message.type === 'sticker' ? getStickerById(message.stickerId || message.content) : null;
 
   const handlePlayVoice = async () => {
     if (playing) return;
@@ -50,18 +52,26 @@ export default function MessageBubble({ message, isMe, onPlayVoice }) {
         </TouchableOpacity>
       );
     }
+    if (message.type === 'sticker') {
+      return (
+        <View style={styles.stickerCard}>
+          <Text style={styles.stickerEmoji}>{sticker?.emoji || '✨'}</Text>
+        </View>
+      );
+    }
     return <Text style={[styles.text, isMe && styles.textMe]}>{message.text}</Text>;
   };
 
   const isImage = message.type === 'image';
-  const contactSeed = message.contactName || message.name || message.text || '友';
+  const isSticker = message.type === 'sticker';
+  const contactSeed = message.contactName || message.name || message.text || message.content || '友';
 
   return (
     <View style={[styles.wrap, isMe ? styles.wrapMe : styles.wrapOther]}>
       {!isMe && <View style={[styles.avatar, resolveOtherAvatarStyle(contactSeed)]}><Text style={styles.avatarText}>{message.contactName?.slice?.(0, 1) || '友'}</Text></View>}
-      <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther, isImage && styles.imageBubble]}>
+      <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther, isImage && styles.imageBubble, isSticker && styles.stickerBubble]}>
         {renderContent()}
-        {message.burnAfterRead && <Text style={[styles.burn, isMe && styles.burnMe, isImage && styles.imageBurn]}>{isImage ? '阅后即焚' : '焚'}</Text>}
+        {message.burnAfterRead && <Text style={[styles.burn, isMe && styles.burnMe, isImage && styles.imageBurn, isSticker && styles.stickerBurn]}>{isImage || isSticker ? '阅后即焚' : '焚'}</Text>}
       </View>
       {isMe && <View style={styles.myAvatar}><Text style={styles.myAvatarText}>我</Text></View>}
     </View>
@@ -80,10 +90,18 @@ const styles = StyleSheet.create({
   bubbleMe: { backgroundColor: '#95EC69', borderRadius: 5, marginRight: 2 },
   bubbleOther: { backgroundColor: '#FFFFFF', borderRadius: 5, marginLeft: 2 },
   imageBubble: { paddingVertical: 0, paddingHorizontal: 0, backgroundColor: 'transparent', overflow: 'visible', borderRadius: 12 },
+  stickerBubble: { paddingVertical: 2, paddingHorizontal: 2, backgroundColor: 'transparent', overflow: 'visible', borderRadius: 0 },
   text: { fontSize: 16, lineHeight: 22, color: '#111111' },
   textMe: { color: '#111111' },
   imageWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: '#DADADA' },
   img: { width: 186, height: 146, borderRadius: 12, backgroundColor: '#DADADA' },
+  stickerCard: {
+    width: 58,
+    height: 58,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stickerEmoji: { fontSize: 48, lineHeight: 56 },
   voice: { flexDirection: 'row', alignItems: 'center', minWidth: 122 },
   voiceOther: { justifyContent: 'flex-start' },
   voiceMe: { justifyContent: 'flex-end' },
@@ -99,4 +117,5 @@ const styles = StyleSheet.create({
   burn: { fontSize: 10, position: 'absolute', bottom: 4, right: 6, color: '#6F6F6F', fontWeight: '700' },
   burnMe: { color: '#355E14' },
   imageBurn: { backgroundColor: 'rgba(0,0,0,0.44)', color: '#FFFFFF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, bottom: 8, right: 8, overflow: 'hidden' },
+  stickerBurn: { backgroundColor: 'rgba(255,255,255,0.82)', color: '#C27A16', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, bottom: 8, right: 8, overflow: 'hidden' },
 });

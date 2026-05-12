@@ -11,7 +11,7 @@ function shouldAutoUploadMessage(tier, message) {
     return false;
   }
 
-  return ['text', 'image', 'voice'].includes(message.type);
+  return ['text', 'image', 'voice', 'sticker'].includes(message.type);
 }
 
 module.exports = {

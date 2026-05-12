@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
-const { getDatabase, findAccountUserByPhone, findAccountUserById, createAccountSession, revokeActiveSessionsForUser, findSessionByToken, touchSession, revokeSessionByToken } = require('./db');
+const { findAccountUserByPhone, findAccountUserById, createAccountSession, findSessionByToken, touchSession, revokeSessionByToken } = require('./db');
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -33,7 +33,6 @@ function sanitizeAccountUser(user) {
 }
 
 function issueSessionForUser(userId, deviceId) {
-  revokeActiveSessionsForUser(userId);
   const token = createSessionToken();
   createAccountSession({
     id: uuidv4(),
@@ -53,12 +52,17 @@ function loginWithPhonePassword(phone, password, deviceId) {
   return issueSessionForUser(user.id, deviceId);
 }
 
+function loginWithPhone(phone, deviceId) {
+  const user = findAccountUserByPhone(phone);
+  if (!user) {
+    return null;
+  }
+  return issueSessionForUser(user.id, deviceId);
+}
+
 function getSessionUser(token, deviceId) {
   const session = findSessionByToken(token);
   if (!session || session.revoked_at) {
-    return { error: 'SESSION_REVOKED' };
-  }
-  if (session.device_id !== deviceId) {
     return { error: 'SESSION_REVOKED' };
   }
   touchSession(session.id);
@@ -79,6 +83,7 @@ module.exports = {
   sanitizeAccountUser,
   issueSessionForUser,
   loginWithPhonePassword,
+  loginWithPhone,
   getSessionUser,
   logoutSession,
 };
