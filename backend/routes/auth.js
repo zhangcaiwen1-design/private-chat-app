@@ -6,6 +6,10 @@ const { createAccountUser, findAccountUserByPhone, updateAccountUserProfile, upd
 
 const router = express.Router();
 
+function getDeviceId(req) {
+  return String(req.body.device_id || req.header('x-device-id') || '').trim();
+}
+
 router.post('/phone/lookup', (req, res) => {
   const phone = String(req.body.phone || '').trim();
   if (!phone) {
@@ -30,7 +34,7 @@ router.post('/register', (req, res) => {
   const password = String(req.body.password || '').trim();
   const nickname = String(req.body.nickname || '').trim() || `用户${phone.slice(-4)}`;
   const avatarUrl = req.body.avatar_url ? String(req.body.avatar_url).trim() : null;
-  const deviceId = String(req.body.device_id || '').trim();
+  const deviceId = getDeviceId(req);
 
   if (!phone || !deviceId) {
     return res.status(400).json({ error: '缺少必要参数' });
@@ -52,7 +56,7 @@ router.post('/register', (req, res) => {
 
 router.post('/login', (req, res) => {
   const phone = String(req.body.phone || '').trim();
-  const deviceId = String(req.body.device_id || '').trim();
+  const deviceId = getDeviceId(req);
 
   if (!phone || !deviceId) {
     return res.status(400).json({ error: '缺少必要参数' });

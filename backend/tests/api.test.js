@@ -101,6 +101,30 @@ test('register creates a phone account and me returns the signed-in user', async
   expect(meRes.body.user.nickname).toBe('用户0001');
 });
 
+test('register and login accept device id from request header fallback', async () => {
+  const phone = '13855550111';
+
+  const registerRes = await request(app)
+    .post('/api/v1/auth/register')
+    .set('x-device-id', 'device-auth-header-register')
+    .send({
+      phone,
+    })
+    .expect(200);
+
+  expect(registerRes.body.user.phone).toBe(phone);
+
+  const loginRes = await request(app)
+    .post('/api/v1/auth/login')
+    .set('x-device-id', 'device-auth-header-login')
+    .send({
+      phone,
+    })
+    .expect(200);
+
+  expect(loginRes.body.user.phone).toBe(phone);
+});
+
 test('register does not bind local contacts until the user chooses bind', async () => {
   const beforeRes = await request(app).get('/api/v1/contacts').expect(200);
   expect(beforeRes.body.contacts.length).toBeGreaterThan(0);
