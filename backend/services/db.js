@@ -1210,18 +1210,33 @@ function rejectMembershipOrder(orderId, reviewer = 'manual-admin', reason = '') 
   return normalizeMembershipOrder(database.prepare('SELECT * FROM membership_orders WHERE id = ?').get(orderId));
 }
 
+const EVENT_TIMEZONE_OFFSET_MS = 8 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function getEventDate(timestamp) {
+  return new Date(Number(timestamp) + EVENT_TIMEZONE_OFFSET_MS);
+}
+
 function formatEventDay(timestamp) {
-  const date = new Date(timestamp);
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
+  const date = getEventDate(timestamp);
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getUTCDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
 function startOfDay(timestamp) {
-  const date = new Date(timestamp);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
+  const date = getEventDate(timestamp);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - EVENT_TIMEZONE_OFFSET_MS;
+}
+
+function parseEventDayStart(eventDay) {
+  const [year, month, day] = String(eventDay).split('-').map(Number);
+  return Date.UTC(year, month - 1, day) - EVENT_TIMEZONE_OFFSET_MS;
+}
+
+function getEventHour(timestamp) {
+  return getEventDate(timestamp).getUTCHours();
 }
 
 function normalizeRitualMilestone(row) {
@@ -1308,7 +1323,7 @@ function updateRitualStreak({ ownerUserId, contactId, streakType, eventAt }, dat
     return existing;
   }
 
-  const diffDays = Math.round((startOfDay(eventAt) - startOfDay(new Date(existing.last_event_day).getTime())) / (24 * 60 * 60 * 1000));
+  const diffDays = Math.round((startOfDay(eventAt) - parseEventDayStart(existing.last_event_day)) / DAY_MS);
   const currentDays = diffDays === 1 ? existing.current_days + 1 : 1;
   const bestDays = Math.max(existing.best_days, currentDays);
 
@@ -1366,7 +1381,7 @@ function recordTextMessageRitual({ ownerUserId, contactId, conversationId, conte
   `).all(contactId, eventAt);
 
   const lateNightOnly = lateNightMessages.filter((item) => {
-    const hour = new Date(item.created_at).getHours();
+    const hour = getEventHour(item.created_at);
     return hour >= 23 || hour <= 3;
   });
 
