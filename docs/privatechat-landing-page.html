@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PrivateChat | 私密聊天专题页</title>
+  <meta name="description" content="PrivateChat 私密聊天助手专题页，展示计算器伪装、阅后即焚、自动回退和云端恢复等功能。" />
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f7;
+      --panel: rgba(255, 255, 255, 0.84);
+      --panel-solid: #ffffff;
+      --text: #111113;
+      --muted: #5f6368;
+      --line: #e5e7ec;
+      --accent: #ff9f0a;
+      --accent-2: #0a84ff;
+      --accent-3: #111113;
+      --shadow: 0 24px 80px rgba(31, 34, 40, 0.12);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(255,255,255,0.95), rgba(245,245,247,0) 30%),
+        radial-gradient(circle at 88% 16%, rgba(216,218,223,0.65), rgba(245,245,247,0) 24%),
+        linear-gradient(180deg, #ffffff, #f5f5f7 52%, #ffffff);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, h3, p { margin: 0; }
+    .shell {
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .topbar,
+    .hero,
+    .feature-grid,
+    .entry,
+    .download-band {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 20px;
+      min-height: 64px;
+      padding: 10px 0;
+      background: rgba(255,255,255,0.84);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(17,17,19,0.06);
+    }
+    .brand {
+      font-size: 19px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+    .nav {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .nav a,
+    .top-cta,
+    .primary,
+    .secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 0 14px;
+      border-radius: 19px;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .nav a,
+    .top-cta,
+    .secondary {
+      color: #5f6368;
+      border: 1px solid transparent;
+    }
+    .nav a:hover,
+    .top-cta:hover,
+    .secondary:hover {
+      background: #fff;
+      color: #111113;
+      border-color: #e7e8ec;
+    }
+    .top-cta,
+    .primary {
+      background: #111113;
+      color: #fff;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(530px, 1fr);
+      gap: 40px;
+      align-items: center;
+      min-height: calc(100vh - 64px);
+      padding: 52px 0 68px;
+    }
+    .eyebrow {
+      color: #ff9f0a;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    h1 {
+      max-width: 760px;
+      margin-top: 16px;
+      font-size: clamp(50px, 5.9vw, 96px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+    .summary {
+      max-width: 610px;
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.72;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 30px;
+    }
+    .primary,
+    .secondary {
+      min-height: 44px;
+      padding: 0 18px;
+    }
+    .primary {
+      box-shadow: 0 16px 34px rgba(17,17,19,0.14);
+    }
+    .stage {
+      min-width: 0;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #111113;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .stage video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #111113;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      padding-bottom: 56px;
+    }
+    .card {
+      min-height: 238px;
+      padding: 24px;
+      background: var(--panel-solid);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 18px 50px rgba(31,34,40,0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card span {
+      color: #6d7078;
+      font-size: 12px;
+      font-weight: 760;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .card h2 {
+      font-size: 28px;
+      line-height: 1.12;
+    }
+    .card p,
+    .entry p {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.72;
+    }
+    .entry {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(340px, 0.52fr);
+      gap: 28px;
+      align-items: end;
+      padding: 12px 0 84px;
+    }
+    .note-list {
+      display: grid;
+      gap: 12px;
+    }
+    .note {
+      padding: 18px 20px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 14px 42px rgba(31,34,40,0.05);
+      color: #3c4047;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    .download-band {
+      padding: 0 0 72px;
+    }
+    .download-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 22px;
+      background: #111113;
+      color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 24px 80px rgba(17,17,19,0.18);
+    }
+    .download-row strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+    .download-row span {
+      display: block;
+      margin-top: 6px;
+      color: rgba(255,255,255,0.68);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .download-row .primary {
+      background: #ff9f0a;
+      color: #111113;
+      box-shadow: none;
+    }
+    @media (max-width: 1080px) {
+      .hero,
+      .entry {
+        grid-template-columns: 1fr;
+      }
+      .feature-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .stage {
+        max-width: 720px;
+      }
+    }
+    @media (max-width: 720px) {
+      .topbar {
+        grid-template-columns: 1fr;
+        justify-items: start;
+        gap: 12px;
+      }
+      .nav {
+        justify-content: flex-start;
+      }
+      .hero {
+        padding-top: 34px;
+        min-height: auto;
+      }
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+      h1 {
+        font-size: 42px;
+        line-height: 1.02;
+      }
+      .summary {
+        font-size: 17px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="#product">PrivateChat</a>
+      <nav class="nav" aria-label="导航">
+        <a href="#product">产品</a>
+        <a href="#features">卖点</a>
+        <a href="#entry">入口</a>
+      </nav>
+      <a class="top-cta" href="/download/latest.apk">下载 APK</a>
+    </header>
+
+    <section id="product" class="hero">
+      <div>
+        <p class="eyebrow">privatechat.yifan1.com / 商业专题页</p>
+        <h1>像计算器一样出现，像私聊一样消失。</h1>
+        <p class="summary">
+          私密聊天助手把计算器伪装、阅后即焚、锁屏回退和云端恢复串成一套更克制的私密沟通体验。
+          打开时很普通，真正的聊天入口藏在更自然的动作里；退出、切页、锁屏后，界面会自动回到计算器外壳。
+        </p>
+        <div class="actions">
+          <a class="primary" href="/download/latest.apk">下载最新版 APK</a>
+          <a class="secondary" href="#demo">查看演示</a>
+          <a class="secondary" href="https://yifan1.com/">返回 yifan1.com</a>
+        </div>
+      </div>
+
+      <div id="demo" class="stage">
+        <video
+          src="https://yifan1.com/videos/private-calculator-chat-apple-style-cn.mp4"
+          poster="https://yifan1.com/videos/private-calculator-chat-apple-style-cn-poster.jpg"
+          autoplay
+          muted
+          loop
+          playsinline
+          controls
+          preload="metadata"
+        ></video>
+      </div>
+    </section>
+
+    <section id="features" class="feature-grid">
+      <article class="card">
+        <span>01</span>
+        <h2>计算器外壳</h2>
+        <p>打开时先看到的是标准计算器界面，真正的聊天入口藏在更自然的动作里，避免一眼暴露用途。</p>
+      </article>
+      <article class="card">
+        <span>02</span>
+        <h2>阅后即焚时间</h2>
+        <p>在聊天框右上角就能直接设置消息保留时间，现场用起来更顺手，也更适合短时敏感沟通。</p>
+      </article>
+      <article class="card">
+        <span>03</span>
+        <h2>锁屏自动回退</h2>
+        <p>锁屏、切换页面、重新打开后，程序会先回到计算器界面，不让聊天内容长时间停在前台。</p>
+      </article>
+      <article class="card">
+        <span>04</span>
+        <h2>本地与云端恢复</h2>
+        <p>图片、文字和语音都能在需要时找回，既保留私密性，也保留必要的连续沟通。</p>
+      </article>
+    </section>
+
+    <section id="entry" class="entry">
+      <div>
+        <p class="eyebrow">产品判断</p>
+        <h2 style="margin-top: 16px; font-size: clamp(34px, 4vw, 56px); line-height: 1.04;">它不是花哨的隐私概念，是能直接上手的私密聊天工具。</h2>
+        <div class="actions" style="margin-top: 24px;">
+          <a class="primary" href="/download/latest.apk">直接下载</a>
+          <a class="secondary" href="/app-version.json">查看版本配置</a>
+        </div>
+      </div>
+      <div class="note-list">
+        <p class="note">阅后即焚、锁屏回退、切页隐藏，这些动作都不是为了炫技，而是让敏感沟通更低调。</p>
+        <p class="note">专题页对外展示产品能力，下载入口仍然保留在同一个子域名下，方便后续更新安装包。</p>
+        <p class="note">如果你要继续做短视频或营销素材，这个页面也能直接作为对外展示的商业落地页。</p>
+      </div>
+    </section>
+
+    <section class="download-band">
+      <div class="download-row">
+        <div>
+          <strong>PrivateChat Android 安装包</strong>
+          <span>当前版本 1.0.8 · 下载文件 privatechat-latest.apk</span>
+        </div>
+        <a class="primary" href="/download/latest.apk">下载最新版 APK</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

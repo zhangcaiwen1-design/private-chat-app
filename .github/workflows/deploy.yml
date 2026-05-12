@@ -53,7 +53,7 @@ jobs:
           mkdir -p deploy-artifacts/site/download
           cp android/app/build/outputs/apk/release/app-release.apk deploy-artifacts/site/download/latest.apk
           cp app-version.json deploy-artifacts/site/app-version.json
-          cp docs/privatechat-download-page.html deploy-artifacts/site/index.html
+          cp docs/privatechat-landing-page.html deploy-artifacts/site/index.html
 
       - name: Upload deploy bundle
         uses: appleboy/scp-action@v0.1.7
