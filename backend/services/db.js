@@ -1329,18 +1329,27 @@ function rejectMembershipOrder(orderId, reviewer = 'manual-admin', reason = '') 
   return normalizeMembershipOrder(database.prepare('SELECT * FROM membership_orders WHERE id = ?').get(orderId));
 }
 
+const RITUAL_TIMEZONE_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function getRitualLocalDate(timestamp) {
+  return new Date(timestamp + RITUAL_TIMEZONE_OFFSET_MS);
+}
+
 function formatEventDay(timestamp) {
-  const date = new Date(timestamp);
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
+  const date = getRitualLocalDate(timestamp);
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getUTCDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
+function ritualDayToTimestamp(day) {
+  const [year, month, date] = day.split('-').map(Number);
+  return Date.UTC(year, month - 1, date) - RITUAL_TIMEZONE_OFFSET_MS;
+}
+
 function startOfDay(timestamp) {
-  const date = new Date(timestamp);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
+  return ritualDayToTimestamp(formatEventDay(timestamp));
 }
 
 function normalizeRitualMilestone(row) {
@@ -1427,7 +1436,7 @@ function updateRitualStreak({ ownerUserId, contactId, streakType, eventAt }, dat
     return existing;
   }
 
-  const diffDays = Math.round((startOfDay(eventAt) - startOfDay(new Date(existing.last_event_day).getTime())) / (24 * 60 * 60 * 1000));
+  const diffDays = Math.round((startOfDay(eventAt) - ritualDayToTimestamp(existing.last_event_day)) / (24 * 60 * 60 * 1000));
   const currentDays = diffDays === 1 ? existing.current_days + 1 : 1;
   const bestDays = Math.max(existing.best_days, currentDays);
 
@@ -1485,7 +1494,7 @@ function recordTextMessageRitual({ ownerUserId, contactId, conversationId, conte
   `).all(contactId, eventAt);
 
   const lateNightOnly = lateNightMessages.filter((item) => {
-    const hour = new Date(item.created_at).getHours();
+    const hour = getRitualLocalDate(item.created_at).getUTCHours();
     return hour >= 23 || hour <= 3;
   });
 
