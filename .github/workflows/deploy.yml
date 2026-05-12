@@ -110,7 +110,9 @@ jobs:
             cd "$APP_DIR"
             npm install --omit=dev
 
-            pkill -f "node.*server.js" || true
+            ps -eo pid=,comm=,args= \
+              | awk '$2 == "node" && index($0, "/opt/privatechat-backend/server.js") {print $1}' \
+              | xargs -r kill
             sleep 2
             nohup npm start > backend.log 2>&1 &
 
