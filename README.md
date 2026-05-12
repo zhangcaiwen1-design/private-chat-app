@@ -1,102 +1,125 @@
-# 私密聊天 App
+# Private Calculator Chat
 
-私密 2 人聊天应用，阅后即焚 + 云端备份。
+Calculator-disguised private chat prototype for Expo Go. The mobile app connects to a local Node/Express server on your computer, and chat data is stored in a local SQLite database.
 
-## 技术栈
+## Project layout
 
-- **前端**: React Native (Expo)
-- **后端**: Node.js + Express
-- **数据库**: 阿里云 RDS MySQL
-- **存储**: 阿里云 OSS
-
-## 项目结构
-
-```
-PrivateChatApp/
-├── app/                    # Expo Router 页面
-├── src/
-│   ├── components/         # React Native 组件
-│   ├── services/           # API 服务
-│   └── utils/              # 工具函数
-├── backend/               # Node.js 后端
-│   ├── routes/            # API 路由
-│   ├── services/          # 数据库/OSS 服务
-│   ├── middleware/       # 中间件
-│   └── server.js         # 入口
-└── docs/                  # 文档
+```text
+app/          Expo Router entry
+src/          Calculator and chat UI
+backend/      Local Express + SQLite API
 ```
 
-## 开发
-
-### 前端
+## Install
 
 ```bash
 npm install
+npm install --prefix backend
+```
+
+## Start backend
+
+```bash
+npm run dev --prefix backend
+```
+
+Backend health check:
+
+```text
+http://localhost:3001/health
+```
+
+Expected response contains `"status":"ok"`.
+
+## Configure phone access
+
+Your phone cannot use `localhost` to reach the computer. Find the computer's LAN IPv4 address, then create `.env` in the project root:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=http://YOUR_COMPUTER_LAN_IP:3001/api/v1
+EXPO_PUBLIC_APP_UNLOCK_PIN=change-me-unlock-pin
+EXPO_PUBLIC_ADMIN_ENTRY_CODE=change-me-admin-entry-code
+ADMIN_MEMBERSHIP_KEY=change-me-admin-key
+```
+
+Example:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=http://192.168.1.100:3001/api/v1
+EXPO_PUBLIC_APP_UNLOCK_PIN=change-me-unlock-pin
+EXPO_PUBLIC_ADMIN_ENTRY_CODE=change-me-admin-entry-code
+ADMIN_MEMBERSHIP_KEY=change-me-admin-key
+```
+
+Keep the phone and computer on the same Wi-Fi.
+
+后端启动时会优先读取项目根 `.env`，也兼容读取 `backend/.env`。
+如果你要打开会员中心里的隐藏运营入口，可以在 `.env` 里设置 `EXPO_PUBLIC_ADMIN_ENTRY_CODE`，网页调试时输入该口令后会跳到本地审核台。
+
+## Start Expo
+
+```bash
 npm start
 ```
 
-### 后端
+Scan the QR code with Expo Go.
+
+## Manual Expo Go test
+
+1. Open the app in Expo Go.
+2. Confirm the first screen looks like a calculator.
+3. Enter the value from `EXPO_PUBLIC_APP_UNLOCK_PIN` and press `=`.
+4. Confirm the chat list appears.
+5. Open the seeded test contact.
+6. Send a text message.
+7. Close and reopen the app.
+8. Unlock again and confirm the message is still present.
+
+## Local-first persistence checks
+
+1. Add a new contact from the chat list.
+2. Open that conversation and send two text messages.
+3. Return to the chat list and confirm the last preview shows the latest text.
+4. Reopen the conversation, delete the latest message, then return to the chat list.
+5. Confirm the preview falls back to the previous message.
+6. Close and reopen Expo Go, unlock again, and confirm the conversation still exists.
+
+The local backend now stores `conversation_id`, `client_id`, `sync_state`, `updated_at`, and soft-delete tombstones so later cloud sync can build on the same local records.
+
+## Cloud record dimension and restore checks
+
+Run the full cloud verification suite:
 
 ```bash
-cd backend
-npm install
-cp .env.example .env
-# 编辑 .env 填入阿里云配置
-npm run dev
+npm run cloud:verify
 ```
 
-## 部署
+This runs backend API regression plus the text, image, and voice cloud restore smoke flows.
 
-### 1. 创建 GitHub 仓库
-
-将代码推送到 GitHub。
-
-### 2. 配置 Secrets
-
-在 GitHub 仓库 Settings > Secrets 中添加：
-
-| Secret | 说明 |
-|--------|------|
-| `SERVER_HOST` | 服务器 IP |
-| `SERVER_PORT` | SSH 端口 (22) |
-| `SERVER_USER` | 服务器用户名 |
-| `SERVER_PASSWORD` | 服务器密码 |
-| `JWT_SECRET` | JWT 密钥 |
-| `OSS_ACCESS_KEY_ID` | 阿里云 AccessKey |
-| `OSS_ACCESS_KEY_SECRET` | 阿里云 AccessKey Secret |
-| `OSS_BUCKET` | OSS Bucket 名称 |
-| `OSS_REGION` | OSS 区域 |
-| `RDS_HOST` | RDS MySQL 主机 |
-| `RDS_DB` | 数据库名 |
-| `RDS_USER` | 数据库用户名 |
-| `RDS_PASSWORD` | 数据库密码 |
-
-### 3. 服务器准备
+If you only want the UI smoke suite:
 
 ```bash
-# 创建目录
-mkdir -p /home/admin/private-chat
-
-# 确保 Node.js 18+ 已安装
-node --version
+npm run cloud:restore:smoke
 ```
 
-### 4. 自动部署
+This sequentially verifies text, image, and voice cloud restore flows.
 
-推送代码到 master 分支即可自动部署。
+Manual checklist:
 
-部署后访问：`http://your-server:3001/health`
+1. Unlock the app and switch cloud membership to paid.
+2. Send a new chat message, then open `云端记录` from the chat list action menu.
+3. Confirm the latest cloud card shows contact, source, and upload time.
+4. Tap the cloud card and confirm preview/download still works.
+5. Tap `恢复到本地` on that card.
+6. Return to the chat list and confirm the restored conversation preview updates.
+7. Open the conversation and confirm the restored message exists locally.
 
-## API 文档
+## Data location
 
-启动后端后访问：`http://localhost:3001/api/v1/`
+SQLite database:
 
-## 功能
+```text
+backend/data/app.db
+```
 
-- [x] 计算器伪装壳
-- [x] 生物识别解锁
-- [x] 文本/图片/语音消息
-- [x] 阅后即焚
-- [x] 云端备份
-- [x] 二维码添加联系人
-- [x] 多用户数据隔离
+This file is intentionally ignored by git.

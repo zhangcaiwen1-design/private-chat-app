@@ -1,6 +1,5 @@
-import { StatusBar } from 'expo-status-bar';
-  import App from '../src/App';
+import { Stack } from 'expo-router';
 
-  export default function Layout() {
-    return <App />;
-  }
+export default function RootLayout() {
+  return <Stack screenOptions={{ headerShown: false }} />;
+}

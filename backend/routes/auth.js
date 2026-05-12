@@ -1,123 +1,121 @@
 const express = require('express');
-const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
-const { query } = require('../services/mysql');
-const { generateToken, hashPassword, comparePassword } = require('../middleware/auth');
+const { hashPassword, issueSessionForUser, loginWithPhonePassword, logoutSession, sanitizeAccountUser } = require('../services/auth');
+const { requireCurrentUser } = require('../services/currentUser');
+const { createAccountUser, findAccountUserByPhone, updateAccountUserProfile, updateAccountUserPassword, bindLegacyLocalDataToUser, clearLegacyLocalDataForUser, getMembershipSnapshot } = require('../services/db');
 
-// SMS verification code store (in production, use Redis)
-const verificationCodes = new Map();
+const router = express.Router();
 
-// Send verification code
-router.post('/send-code', async (req, res) => {
-  try {
-    const { phone } = req.body;
-
-    if (!phone || !/^1\d{10}$/.test(phone)) {
-      return res.status(400).json({ error: '请输入有效的手机号' });
-    }
-
-    // Generate 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
-
-    // Store code (in production, send SMS via Aliyun Dysms)
-    verificationCodes.set(phone, { code, expiresAt });
-
-    console.log(`[DEV] Verification code for ${phone}: ${code}`);
-
-    // TODO: In production, call Aliyun SMS API:
-    // await dysms.sendCode({ PhoneNumbers: phone, SignName: '私密聊天', TemplateCode: 'SMS_xxx', TemplateParam: { code } });
-
-    res.json({
-      success: true,
-      expires_in: 300
-    });
-  } catch (error) {
-    console.error('Send code error:', error);
-    res.status(500).json({ error: '发送验证码失败' });
+router.post('/phone/lookup', (req, res) => {
+  const phone = String(req.body.phone || '').trim();
+  if (!phone) {
+    return res.status(400).json({ error: '手机号不能为空' });
   }
+  const existing = findAccountUserByPhone(phone);
+  if (!existing) {
+    return res.json({ exists: false, user: null });
+  }
+  return res.json({
+    exists: true,
+    user: {
+      id: existing.id,
+      nickname: existing.nickname,
+      avatar_url: existing.avatar_url || null,
+    },
+  });
 });
 
-// Login with phone and verification code
-router.post('/login', async (req, res) => {
-  try {
-    const { phone, code, password } = req.body;
+router.post('/register', (req, res) => {
+  const phone = String(req.body.phone || '').trim();
+  const password = String(req.body.password || '').trim();
+  const nickname = String(req.body.nickname || '').trim();
+  const avatarUrl = req.body.avatar_url ? String(req.body.avatar_url).trim() : null;
+  const deviceId = String(req.body.device_id || '').trim();
 
-    if (!phone || !/^1\d{10}$/.test(phone)) {
-      return res.status(400).json({ error: '请输入有效的手机号' });
-    }
-
-    // Check if user exists
-    const users = await query('SELECT * FROM users WHERE phone = ?', [phone]);
-    let user = users[0];
-
-    if (!user) {
-      // New user - register
-      if (!code && !password) {
-        return res.status(400).json({ error: '新用户需要验证码或密码注册' });
-      }
-
-      // Verify code if provided
-      if (code) {
-        const stored = verificationCodes.get(phone);
-        if (!stored || stored.code !== code || stored.expiresAt < Date.now()) {
-          return res.status(400).json({ error: '验证码无效或已过期' });
-        }
-        verificationCodes.delete(phone);
-      }
-
-      // Create new user
-      const id = uuidv4();
-      const now = Date.now();
-      const pwdHash = password ? await hashPassword(password) : await hashPassword(code);
-
-      await query(
-        'INSERT INTO users (id, phone, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-        [id, phone, pwdHash, now, now]
-      );
-
-      user = { id, phone, name: null, avatar_url: null };
-    } else {
-      // Existing user - verify password
-      if (password) {
-        const valid = await comparePassword(password, user.password_hash);
-        if (!valid) {
-          return res.status(401).json({ error: '密码错误' });
-        }
-      } else if (code) {
-        // Verify code login for existing user
-        const stored = verificationCodes.get(phone);
-        if (!stored || stored.code !== code || stored.expiresAt < Date.now()) {
-          return res.status(400).json({ error: '验证码无效或已过期' });
-        }
-        verificationCodes.delete(phone);
-      } else {
-        return res.status(400).json({ error: '请提供密码或验证码' });
-      }
-    }
-
-    // Generate JWT token
-    const token = generateToken(user.id, user.phone);
-
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        phone: user.phone,
-        name: user.name
-      }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: '登录失败' });
+  if (!phone || !password || !nickname || !deviceId) {
+    return res.status(400).json({ error: '缺少必要参数' });
   }
+  if (findAccountUserByPhone(phone)) {
+    return res.status(409).json({ error: '该手机号已注册' });
+  }
+
+  const user = createAccountUser({
+    id: uuidv4(),
+    phone,
+    passwordHash: hashPassword(password),
+    nickname,
+    avatarUrl,
+  });
+  const session = issueSessionForUser(user.id, deviceId);
+  return res.json({ token: session.token, user: session.user, membership: getMembershipSnapshot(user.id) });
 });
 
-// Logout
-router.post('/logout', (req, res) => {
-  // JWT is stateless, so logout is handled client-side
-  // In production, you might blacklist the token in Redis
-  res.json({ success: true });
+router.post('/login', (req, res) => {
+  const phone = String(req.body.phone || '').trim();
+  const password = String(req.body.password || '').trim();
+  const deviceId = String(req.body.device_id || '').trim();
+
+  if (!phone || !password || !deviceId) {
+    return res.status(400).json({ error: '缺少必要参数' });
+  }
+
+  const result = loginWithPhonePassword(phone, password, deviceId);
+  if (!result) {
+    return res.status(401).json({ error: '手机号或密码错误' });
+  }
+
+  return res.json({ token: result.token, user: result.user, membership: getMembershipSnapshot(result.user.id) });
+});
+
+router.get('/me', requireCurrentUser, (req, res) => {
+  return res.json({ user: req.currentUser, membership: getMembershipSnapshot(req.currentUser.id) });
+});
+
+router.post('/logout', requireCurrentUser, (req, res) => {
+  const token = String(req.header('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  logoutSession(token);
+  return res.json({ success: true });
+});
+
+router.post('/profile', requireCurrentUser, (req, res) => {
+  const nickname = req.body.nickname === undefined ? undefined : String(req.body.nickname || '').trim();
+  const phone = req.body.phone === undefined ? undefined : String(req.body.phone || '').trim();
+  const avatarUrl = req.body.avatar_url === undefined ? undefined : (req.body.avatar_url ? String(req.body.avatar_url).trim() : null);
+
+  if (nickname !== undefined && !nickname) {
+    return res.status(400).json({ error: '昵称不能为空' });
+  }
+  if (phone !== undefined) {
+    if (!phone) {
+      return res.status(400).json({ error: '手机号不能为空' });
+    }
+    const existing = findAccountUserByPhone(phone);
+    if (existing && existing.id !== req.currentUser.id) {
+      return res.status(409).json({ error: '该手机号已被使用' });
+    }
+  }
+
+  const user = updateAccountUserProfile(req.currentUser.id, { nickname, phone, avatarUrl });
+  return res.json({ user: sanitizeAccountUser(user) });
+});
+
+router.post('/password', requireCurrentUser, (req, res) => {
+  const password = String(req.body.password || '').trim();
+  if (!password) {
+    return res.status(400).json({ error: '密码不能为空' });
+  }
+  updateAccountUserPassword(req.currentUser.id, hashPassword(password));
+  return res.json({ success: true });
+});
+
+router.post('/local-data/bind', requireCurrentUser, (req, res) => {
+  bindLegacyLocalDataToUser(req.currentUser.id);
+  return res.json({ success: true });
+});
+
+router.post('/local-data/clear', requireCurrentUser, (req, res) => {
+  clearLegacyLocalDataForUser(req.currentUser.id);
+  return res.json({ success: true });
 });
 
 module.exports = router;

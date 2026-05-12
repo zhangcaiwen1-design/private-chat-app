@@ -1,4 +1,5 @@
 import * as ApiService from './ApiService';
+import { listConversationMessages, removeConversationMessage } from './ChatRepository';
 
 // Burn duration options in milliseconds
 export const BURN_OPTIONS = {
@@ -10,9 +11,29 @@ export const BURN_OPTIONS = {
 
 // Check if message should be destroyed
 export function shouldDestroyMessage(message) {
-  if (!message.burn_after_read || !message.read_at) return false;
-  const elapsed = Date.now() - message.read_at;
-  return elapsed > message.burn_duration;
+  if (!message.burnAfterRead || !message.readAt) return false;
+  const elapsed = Date.now() - message.readAt;
+  return elapsed > message.burnDuration;
+}
+
+// Destroy expired burn-after-read messages and return remaining messages
+export async function destroyExpiredMessages(contactId) {
+  try {
+    const messages = await listConversationMessages(contactId);
+    let changed = false;
+
+    for (const message of messages) {
+      if (shouldDestroyMessage(message)) {
+        await removeConversationMessage(message.id);
+        changed = true;
+      }
+    }
+
+    return changed ? listConversationMessages(contactId) : messages;
+  } catch (error) {
+    console.error('Destroy expired messages failed:', error);
+    return null;
+  }
 }
 
 // Send message via API

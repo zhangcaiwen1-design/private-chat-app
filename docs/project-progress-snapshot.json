@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-01 01:18:14",
+  "sourceRoot": "D:/coding",
+  "projects": [
+    {
+      "projectId": "frozen-order",
+      "name": "冻品开单助手 / autoErp",
+      "path": "D:/coding/autoErp",
+      "exists": true,
+      "isGitRepo": true,
+      "branch": "master",
+      "lastCommit": {
+        "hash": "ee34c071",
+        "date": "2026-05-01",
+        "message": "chore: publish Android app update 1.0.7"
+      },
+      "workingTree": {
+        "modified": 14,
+        "added": 0,
+        "deleted": 0,
+        "untracked": 14,
+        "renamed": 0,
+        "total": 28,
+        "recentFiles": [
+          "autoErp-server/src/main/java/com/autoerp/service/impl/PurchaseOrderServiceImpl.java",
+          "autoErp-server/src/main/java/com/autoerp/service/impl/SaleOrderServiceImpl.java",
+          "autoErp-server/src/test/java/com/autoerp/service/impl/OrderAlertServiceImplTest.java",
+          "autoErp-server/src/test/java/com/autoerp/service/impl/PurchaseOrderServiceImplTest.java",
+          "autoErp-uniapp/manifest.json",
+          "autoErp-uniapp/pages/admin/order/order.vue",
+          "autoErp-uniapp/pages/admin/purchase/purchase.vue",
+          "autoErp-uniapp/pages/salesman/order/order.vue",
+          "autoErp-uniapp/pages/shipper/scan/scan.vue",
+          "autoErp-uniapp/pages/shipper/shipped/shipped.vue",
+          "autoErp-uniapp/tests/purchaseDisplay.test.js",
+          "autoErp-uniapp/utils/share.js"
+        ]
+      },
+      "docs": {
+        "hasDocs": true,
+        "hasSpecs": true,
+        "hasPlans": true,
+        "recentSpecCount": 28,
+        "recentPlanCount": 22
+      },
+      "tech": {
+        "type": "Node/Web",
+        "hasPackageJson": true,
+        "hasGradle": false,
+        "hasPomXml": false,
+        "hasPagesJson": false,
+        "hasAppJson": false,
+        "hasTests": true
+      },
+      "inferredStatus": "开发中，未提交改动较多",
+      "suggestedNextAction": "先整理未提交改动，区分当前要提交的内容和历史遗留内容。"
+    },
+    {
+      "projectId": "frozen-order-lite",
+      "name": "冻品开单助手工作树",
+      "path": "D:/coding/frozen-order-assistant",
+      "exists": true,
+      "isGitRepo": true,
+      "branch": "feature/store-isolation-task4-retry",
+      "lastCommit": {
+        "hash": "25a9d37c",
+        "date": "2026-04-30",
+        "message": "feat: add store scope guard"
+      },
+      "workingTree": {
+        "modified": 22,
+        "added": 0,
+        "deleted": 0,
+        "untracked": 6,
+        "renamed": 0,
+        "total": 28,
+        "recentFiles": [
+          "../autoErp-server/src/main/java/com/autoerp/config/DatabaseSchemaInitializer.java",
+          "../autoErp-server/src/main/java/com/autoerp/controller/CustomerController.java",
+          "../autoErp-server/src/main/java/com/autoerp/controller/ProductController.java",
+          "../autoErp-server/src/main/java/com/autoerp/controller/PublicQuoteController.java",
+          "../autoErp-server/src/main/java/com/autoerp/controller/ReportController.java",
+          "../autoErp-server/src/main/java/com/autoerp/controller/SupplierController.java",
+          "../autoErp-server/src/main/java/com/autoerp/mapper/ProductMapper.java",
+          "../autoErp-server/src/main/java/com/autoerp/service/QuoteTemplateService.java",
+          "../autoErp-server/src/main/java/com/autoerp/service/StockService.java",
+          "../autoErp-server/src/main/java/com/autoerp/service/impl/CustomerServiceImpl.java",
+          "../autoErp-server/src/main/java/com/autoerp/service/impl/ProductServiceImpl.java",
+          "../autoErp-server/src/main/java/com/autoerp/service/impl/PurchaseOrderServiceImpl.java"
+        ]
+      },
+      "docs": {
+        "hasDocs": false,
+        "hasSpecs": false,
+        "hasPlans": false,
+        "recentSpecCount": 0,
+        "recentPlanCount": 0
+      },
+      "tech": {
+        "type": "UniApp",
+        "hasPackageJson": true,
+        "hasGradle": false,
+        "hasPomXml": false,
+        "hasPagesJson": true,
+        "hasAppJson": false,
+        "hasTests": true
+      },
+      "inferredStatus": "开发中，未提交改动较多",
+      "suggestedNextAction": "先整理未提交改动，区分当前要提交的内容和历史遗留内容。"
+    },
+    {
+      "projectId": "ai-girlfriend",
+      "name": "AI 女友",
+      "path": "D:/coding/autojqr",
+      "exists": true,
+      "isGitRepo": true,
+      "branch": "master",
+      "lastCommit": {
+        "hash": "6b89da6",
+        "date": "2026-04-08",
+        "message": "Add animated UI with pulse effects"
+      },
+      "workingTree": {
+        "modified": 14,
+        "added": 0,
+        "deleted": 0,
+        "untracked": 4,
+        "renamed": 0,
+        "total": 18,
+        "recentFiles": [
+          ".claude/settings.local.json",
+          "app/src/main/java/com/aigirlfriend/MainActivity.kt",
+          "app/src/main/java/com/aigirlfriend/ai/GPT4oRealtimeClient.kt",
+          "app/src/main/java/com/aigirlfriend/ai/TTSClient.kt",
+          "app/src/main/java/com/aigirlfriend/audio/AudioCapture.kt",
+          "app/src/main/java/com/aigirlfriend/memory/ConversationDB.kt",
+          "app/src/main/java/com/aigirlfriend/memory/MemoryManager.kt",
+          "app/src/main/java/com/aigirlfriend/ui/SettingsScreen.kt",
+          "app/src/main/java/com/aigirlfriend/wakeword/WakeWordDetector.kt",
+          "app/src/main/res/layout/activity_main.xml",
+          "app/src/main/res/layout/screen_settings.xml",
+          "app/src/main/res/values/colors.xml"
+        ]
+      },
+      "docs": {
+        "hasDocs": true,
+        "hasSpecs": true,
+        "hasPlans": true,
+        "recentSpecCount": 1,
+        "recentPlanCount": 1
+      },
+      "tech": {
+        "type": "Android/Gradle",
+        "hasPackageJson": false,
+        "hasGradle": true,
+        "hasPomXml": false,
+        "hasPagesJson": false,
+        "hasAppJson": false,
+        "hasTests": false
+      },
+      "inferredStatus": "开发中，未提交改动较多",
+      "suggestedNextAction": "先整理未提交改动，区分当前要提交的内容和历史遗留内容。"
+    },
+    {
+      "projectId": "private-chat",
+      "name": "私密聊天助手",
+      "path": "D:/coding/private-calculator-chat",
+      "exists": true,
+      "isGitRepo": true,
+      "branch": "task-5-persist-chats",
+      "lastCommit": {
+        "hash": "d2f125a",
+        "date": "2026-05-01",
+        "message": "docs: add app launch and portfolio workflow"
+      },
+      "workingTree": {
+        "modified": 0,
+        "added": 3,
+        "deleted": 0,
+        "untracked": 0,
+        "renamed": 0,
+        "total": 3,
+        "recentFiles": [
+          "docs/manual-progress-log.json",
+          "docs/project-progress-snapshot.json",
+          "scripts/update-project-dashboard.py"
+        ]
+      },
+      "docs": {
+        "hasDocs": true,
+        "hasSpecs": true,
+        "hasPlans": true,
+        "recentSpecCount": 6,
+        "recentPlanCount": 5
+      },
+      "tech": {
+        "type": "Expo/React Native",
+        "hasPackageJson": true,
+        "hasGradle": false,
+        "hasPomXml": false,
+        "hasPagesJson": false,
+        "hasAppJson": true,
+        "hasTests": true
+      },
+      "inferredStatus": "计划执行中",
+      "suggestedNextAction": "对照计划检查实现进度，必要时运行测试或整理提交。"
+    }
+  ]
+}

@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ApiService from './ApiService';
+import { clearUserProfile, getDeviceId, setUserProfile, setUserUnlockPin } from './UserService';
+import { setMembershipTier } from './MembershipService';
 
 const SENSITIVE_KEYS = ['currentChat', 'previewMessages'];
+const AUTH_TOKEN_KEY = 'auth_token';
+const AUTH_STATUS_KEY = 'auth_status';
+const AUTH_KICKOUT_KEY = 'auth_kickout_reason';
 
-/**
- * Authenticate with biometric (fingerprint, face, etc.)
- * For MVP, this is a mock that always succeeds after a delay.
- * In production, replace with react-native-biometrics or expo-local-authentication.
- */
 export async function authenticateWithBiometric() {
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -15,9 +16,86 @@ export async function authenticateWithBiometric() {
   });
 }
 
-/**
- * Clear any sensitive data from AsyncStorage (session data, preview messages, etc.)
- */
+export async function getStoredAuthToken() {
+  return AsyncStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export async function persistAuthSession({ token, user, membership }, options = {}) {
+  if (!token || !user?.id) {
+    throw new Error('登录信息不完整');
+  }
+
+  ApiService.setAuthToken(token);
+  await AsyncStorage.multiSet([
+    [AUTH_TOKEN_KEY, token],
+    [AUTH_STATUS_KEY, 'signed_in'],
+    [AUTH_KICKOUT_KEY, ''],
+  ]);
+  await setUserProfile({
+    userId: user.id,
+    name: user.nickname,
+    phone: user.phone,
+    avatarUrl: user.avatar_url || null,
+    unlockPin: options.unlockPin,
+  });
+  await setMembershipTier(membership?.tier || 'free');
+  return { token, user, membership };
+}
+
+export async function restoreAuthSession() {
+  const token = await getStoredAuthToken();
+  if (!token) {
+    ApiService.setAuthToken(null);
+    return null;
+  }
+
+  ApiService.setAuthToken(token);
+  try {
+    const result = await ApiService.getCurrentUser();
+    await setUserProfile({
+      userId: result.user.id,
+      name: result.user.nickname,
+      phone: result.user.phone,
+      avatarUrl: result.user.avatar_url || null,
+    });
+    await setMembershipTier(result.membership?.tier || 'free');
+    await AsyncStorage.multiSet([
+      [AUTH_STATUS_KEY, 'signed_in'],
+      [AUTH_KICKOUT_KEY, ''],
+    ]);
+    return { token, user: result.user, membership: result.membership };
+  } catch (error) {
+    const isRevoked = error?.message?.includes('登录状态已失效');
+    await clearSession();
+    await clearAuthState({ preserveKickoutReason: !isRevoked });
+    if (isRevoked) {
+      await AsyncStorage.setItem(AUTH_KICKOUT_KEY, '账号已在其他设备登录');
+    }
+    return null;
+  }
+}
+
+export async function getKickoutReason() {
+  return AsyncStorage.getItem(AUTH_KICKOUT_KEY);
+}
+
+export async function clearKickoutReason() {
+  await AsyncStorage.setItem(AUTH_KICKOUT_KEY, '');
+}
+
+async function clearAuthState(options = {}) {
+  const { preserveKickoutReason = false } = options;
+
+  ApiService.setAuthToken(null);
+  const removals = [AUTH_TOKEN_KEY, AUTH_STATUS_KEY];
+  if (!preserveKickoutReason) {
+    removals.push(AUTH_KICKOUT_KEY);
+  }
+  await AsyncStorage.multiRemove(removals);
+  await clearUserProfile();
+  await setMembershipTier('free');
+}
+
 export async function clearSession() {
   try {
     const keys = await AsyncStorage.getAllKeys();
@@ -25,7 +103,46 @@ export async function clearSession() {
     if (keysToRemove.length > 0) {
       await AsyncStorage.multiRemove(keysToRemove);
     }
-  } catch (e) {
-    // Silent fail - session cleanup is best effort
+  } catch {}
+}
+
+export async function lockApp() {
+  await clearSession();
+}
+
+export async function signOut() {
+  try {
+    await ApiService.logout();
+  } catch {}
+  await clearSession();
+  await clearAuthState();
+}
+
+export async function registerWithPhone({ phone, password, nickname, avatarUrl = null }) {
+  const deviceId = await getDeviceId();
+  const result = await ApiService.register({
+    phone,
+    password,
+    nickname,
+    avatar_url: avatarUrl,
+    device_id: deviceId,
+  });
+  const session = await persistAuthSession(result, { unlockPin: password });
+  await ApiService.bindLocalData();
+  return session;
+}
+
+export async function loginWithPhone({ phone, password }) {
+  const deviceId = await getDeviceId();
+  const result = await ApiService.login(phone, password, deviceId);
+  return persistAuthSession(result, { unlockPin: password });
+}
+
+export async function updatePassword(password) {
+  const nextPassword = String(password || '').trim();
+  if (!nextPassword) {
+    throw new Error('密码不能为空');
   }
+  await ApiService.updatePassword(nextPassword);
+  await setUserUnlockPin(nextPassword);
 }

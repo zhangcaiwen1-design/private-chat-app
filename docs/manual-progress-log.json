@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-30",
+  "items": [
+    {
+      "id": "manual-20260430-private-chat-domain-yifan1",
+      "projectId": "private-chat",
+      "projectName": "私密聊天助手",
+      "module": "上架与合规",
+      "item": "域名 yifan1.com",
+      "status": "个人名义已购买",
+      "date": "2026-04-30",
+      "scheduledDate": null,
+      "owner": "用户",
+      "requiresUserAction": true,
+      "isBlocking": true,
+      "note": "用户说明 yifan1.com 是个人名义购买。后续如用于公司 App 上架、备案、协议页，需要确认是否转为公司主体实名/备案，或另购公司域名。",
+      "nextAction": "新公司主体确定后，确认 yifan1.com 是否转公司实名/备案，或选择新的公司主体域名。"
+    },
+    {
+      "id": "manual-20260430-private-chat-company-change",
+      "projectId": "private-chat",
+      "projectName": "私密聊天助手",
+      "module": "上架与合规",
+      "item": "公司名称变更和经营范围增项",
+      "status": "已预约",
+      "date": "2026-04-30",
+      "scheduledDate": "2026-05-06",
+      "owner": "用户",
+      "requiresUserAction": true,
+      "isBlocking": true,
+      "note": "用户已预约 2026-05-06 让代账会计办理公司名称变更和经营范围增项。",
+      "nextAction": "2026-05-06 后确认办理结果，并更新新营业执照信息。"
+    }
+  ]
+}

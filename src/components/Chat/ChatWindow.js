@@ -1,22 +1,21 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import MessageBubble from './MessageBubble';
-import CloudBackupModal from './CloudBackupModal';
 import BurnModal from './BurnModal';
-import { getMessages, saveMessage } from '../../services/StorageService';
-import { deleteMessage, destroyExpiredMessages, BURN_OPTIONS } from '../../services/MessageService';
-import { uploadToCloud } from '../../services/CloudService';
+import { listConversationMessages, removeConversationMessage, sendConversationMessage } from '../../services/ChatRepository';
+import { destroyExpiredMessages, BURN_OPTIONS } from '../../services/MessageService';
+import { syncMessageToCloud } from '../../services/CloudService';
 
-const BURN_LABELS = { '1分钟': '60秒', '5分钟': '5分钟', '30分钟': '30分钟', '1小时': '1小时' };
-
-export default function ChatWindow({ route, onBack }) {
+export default function ChatWindow({ route, onBack, onLock }) {
   const { contact } = route.params;
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [messageAction, setMessageAction] = useState(null);
-  const [showCloudModal, setShowCloudModal] = useState(false);
   const [showBurnModal, setShowBurnModal] = useState(false);
   const [burnOption, setBurnOption] = useState(null);
   const [recording, setRecording] = useState(null);
@@ -25,64 +24,96 @@ export default function ChatWindow({ route, onBack }) {
   const recordingTimer = useRef(null);
   const sound = useRef(new Audio.Sound());
   const [showMore, setShowMore] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
 
   const loadMessages = useCallback(async () => {
-    const loaded = await getMessages(contact.id);
-    setMessages(loaded);
+    try {
+      const loaded = await listConversationMessages(contact.id);
+      setMessages(loaded);
+    } catch (error) {
+      Alert.alert('连接失败', error.message || '无法加载聊天记录');
+    }
   }, [contact.id]);
 
   useEffect(() => {
     loadMessages();
     const interval = setInterval(async () => {
-      const active = await destroyExpiredMessages(contact.id);
-      setMessages(active);
+      try {
+        const active = await destroyExpiredMessages(contact.id);
+        if (active) setMessages(active);
+      } catch {
+        // ignore background cleanup failures
+      }
     }, 5000);
     return () => clearInterval(interval);
-  }, [loadMessages, contact.id]);
+  }, [contact.id, loadMessages]);
 
-  useEffect(() => {
-    return () => {
-      if (recording) recording.stopAndUnloadAsync();
-      sound.current.unloadAsync();
-    };
-  }, []);
+  useEffect(() => () => {
+    if (recording) {
+      recording.stopAndUnloadAsync().catch(() => {});
+    }
+    sound.current.unloadAsync().catch(() => {});
+  }, [recording]);
+
+  const syncSavedMessageToCloud = async (saved) => {
+    try {
+      await syncMessageToCloud(saved);
+    } catch (error) {
+      Alert.alert('云端保存失败', error.message || '无法保存到云端');
+    }
+  };
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
-    const msg = { text: inputText.trim(), isMe: true };
+    const msg = { text: inputText.trim(), type: 'text', isMe: true };
     if (burnOption) {
       msg.burnAfterRead = true;
       msg.burnDuration = BURN_OPTIONS[burnOption];
       msg.readAt = null;
     }
-    await saveMessage(contact.id, msg);
-    setMessages(prev => [...prev, { ...msg, id: Date.now(), timestamp: Date.now() }]);
-    setInputText('');
+    try {
+      const saved = await sendConversationMessage(contact, msg);
+      setMessages(prev => [...prev, saved]);
+      setInputText('');
+      await syncSavedMessageToCloud(saved);
+    } catch (error) {
+      Alert.alert('发送失败', error.message || '无法保存消息到本地服务器');
+    }
   };
 
   const handleSelectImage = async () => {
-    setShowMore(false);
-    const p = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!p.granted) { Alert.alert('权限不足', '请在设置中开启相册权限'); return; }
-    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
-    if (!r.canceled && r.assets[0]) {
-      const msg = { uri: r.assets[0].uri, type: 'image', isMe: true };
-      if (burnOption) { msg.burnAfterRead = true; msg.burnDuration = BURN_OPTIONS[burnOption]; }
-      await saveMessage(contact.id, msg);
-      setMessages(prev => [...prev, { ...msg, id: Date.now(), timestamp: Date.now() }]);
+    try {
+      setShowMore(false);
+      const p = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!p.granted) { Alert.alert('权限不足', '请在设置中开启相册权限'); return; }
+      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+      if (!r.canceled && r.assets[0]) {
+        const msg = { uri: r.assets[0].uri, type: 'image', isMe: true };
+        if (burnOption) { msg.burnAfterRead = true; msg.burnDuration = BURN_OPTIONS[burnOption]; }
+        const saved = await sendConversationMessage(contact, msg);
+        setMessages(prev => [...prev, saved]);
+        await syncSavedMessageToCloud(saved);
+      }
+    } catch (error) {
+      Alert.alert('发送失败', error.message || '无法保存图片到本地服务器');
     }
   };
 
   const handleTakePhoto = async () => {
-    setShowMore(false);
-    const p = await ImagePicker.requestCameraPermissionsAsync();
-    if (!p.granted) { Alert.alert('权限不足', '请在设置中开启相机权限'); return; }
-    const r = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (!r.canceled && r.assets[0]) {
-      const msg = { uri: r.assets[0].uri, type: 'image', isMe: true };
-      if (burnOption) { msg.burnAfterRead = true; msg.burnDuration = BURN_OPTIONS[burnOption]; }
-      await saveMessage(contact.id, msg);
-      setMessages(prev => [...prev, { ...msg, id: Date.now(), timestamp: Date.now() }]);
+    try {
+      setShowMore(false);
+      const p = await ImagePicker.requestCameraPermissionsAsync();
+      if (!p.granted) { Alert.alert('权限不足', '请在设置中开启相机权限'); return; }
+      const r = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+      if (!r.canceled && r.assets[0]) {
+        const msg = { uri: r.assets[0].uri, type: 'image', isMe: true };
+        if (burnOption) { msg.burnAfterRead = true; msg.burnDuration = BURN_OPTIONS[burnOption]; }
+        const saved = await sendConversationMessage(contact, msg);
+        setMessages(prev => [...prev, saved]);
+        await syncSavedMessageToCloud(saved);
+      }
+    } catch (error) {
+      Alert.alert('发送失败', error.message || '无法保存图片到本地服务器');
     }
   };
 
@@ -94,50 +125,74 @@ export default function ChatWindow({ route, onBack }) {
       setRecording(recording);
       setRecordingDuration(0);
       setIsRecording(true);
+      setShowMore(false);
       recordingTimer.current = setInterval(() => setRecordingDuration(prev => prev + 1), 1000);
-    } catch (err) { Alert.alert('录音失败', '无法启动录音'); }
+    } catch { Alert.alert('录音失败', '无法启动录音'); }
   };
 
   const stopRecording = async () => {
     if (!recording) return;
-    clearInterval(recordingTimer.current);
-    setIsRecording(false);
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
-    setRecording(null);
-    setRecordingDuration(0);
-    if (uri && recordingDuration > 0) {
-      const msg = { uri, type: 'voice', duration: recordingDuration, isMe: true };
-      if (burnOption) { msg.burnAfterRead = true; msg.burnDuration = BURN_OPTIONS[burnOption]; }
-      await saveMessage(contact.id, msg);
-      setMessages(prev => [...prev, { ...msg, id: Date.now(), timestamp: Date.now() }]);
+    try {
+      clearInterval(recordingTimer.current);
+      setIsRecording(false);
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+      setRecordingDuration(0);
+      if (uri && recordingDuration > 0) {
+        const msg = { uri, type: 'voice', duration: recordingDuration, isMe: true };
+        if (burnOption) { msg.burnAfterRead = true; msg.burnDuration = BURN_OPTIONS[burnOption]; }
+        const saved = await sendConversationMessage(contact, msg);
+        setMessages(prev => [...prev, saved]);
+        await syncSavedMessageToCloud(saved);
+      }
+    } catch (error) {
+      setRecording(null);
+      setRecordingDuration(0);
+      Alert.alert('发送失败', error.message || '无法保存语音到本地服务器');
     }
   };
 
   const cancelRecording = async () => {
     if (!recording) return;
-    clearInterval(recordingTimer.current);
-    setIsRecording(false);
-    await recording.stopAndUnloadAsync();
-    setRecording(null);
-    setRecordingDuration(0);
+    try {
+      clearInterval(recordingTimer.current);
+      setIsRecording(false);
+      await recording.stopAndUnloadAsync();
+      setRecording(null);
+      setRecordingDuration(0);
+    } catch {
+      setRecording(null);
+      setRecordingDuration(0);
+    }
   };
 
-  const handleLongPressIn = () => { setTimeout(() => startRecording(), 200); };
-  const handleLongPressOut = () => { if (isRecording && recording) stopRecording(); };
-  const handleLongPressCancel = () => { cancelRecording(); };
+  const handleVoiceLongPress = async () => {
+    if (!voiceMode || recording || isRecording) {
+      return;
+    }
+    await startRecording();
+  };
+
+  const handleLongPressOut = () => {
+    if (voiceMode && isRecording && recording) {
+      stopRecording();
+    }
+  };
 
   const handleLongPress = (msg) => setMessageAction(msg);
 
-  const handleCloudBackup = () => { setShowCloudModal(true); setMessageAction(null); };
-  const handleUploadConfirm = async () => {
-    if (messageAction) { await uploadToCloud(messageAction); Alert.alert('成功', '已加密上传到云端，可在"云端记录"中查看'); }
-    setShowCloudModal(false);
-    setMessageAction(null);
-  };
   const handleDeleteMsg = async () => {
-    if (messageAction) { await deleteMessage(contact.id, messageAction.id); setMessages(prev => prev.filter(m => m.id !== messageAction.id)); }
-    setMessageAction(null);
+    try {
+      if (messageAction) {
+        await removeConversationMessage(messageAction.id);
+        await loadMessages();
+      }
+      setMessageAction(null);
+    } catch (error) {
+      Alert.alert('删除失败', error.message || '无法删除消息');
+      setMessageAction(null);
+    }
   };
 
   const renderMsg = ({ item }) => (
@@ -148,47 +203,96 @@ export default function ChatWindow({ route, onBack }) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}><Text style={styles.back}>‹</Text></TouchableOpacity>
-        <Text style={styles.name}>{contact.name}</Text>
-        <TouchableOpacity onPress={() => setShowBurnModal(true)}>
-          <Text style={[styles.burnBtn, burnOption && styles.burnBtnActive]}>🔥</Text>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 20) }]}>
+        <TouchableOpacity style={styles.headerIconButton} onPress={onBack} accessibilityLabel="返回会话列表">
+          <Ionicons name="chevron-back" size={24} color="#111111" />
         </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.name} numberOfLines={1}>{contact.name}</Text>
+          <Text style={styles.subline}>{contact.syncState === 'request_sent' ? '等待对方通过好友申请' : '本地私密 · 仅此设备'}</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerIconButton} onPress={onLock} accessibilityLabel="锁定应用">
+            <Ionicons name="lock-closed-outline" size={19} color="#111111" />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.headerIconButton, burnOption && styles.burnButtonActive]} onPress={() => setShowBurnModal(true)} accessibilityLabel="打开阅后即焚设置">
+            <Ionicons name={burnOption ? 'flame' : 'ellipsis-horizontal'} size={18} color={burnOption ? '#2B4A0E' : '#111111'} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList data={[...messages].reverse()} renderItem={renderMsg} keyExtractor={item => String(item.id)} contentContainerStyle={styles.list} inverted />
 
       {recording ? (
-        <View style={styles.recBar}>
-          <TouchableOpacity onPress={cancelRecording}><Text style={styles.cancel}>取消</Text></TouchableOpacity>
-          <View style={styles.recCenter}><Text style={styles.recDot}>●</Text><Text style={styles.recTime}>{Math.floor(recordingDuration/60)}:{String(recordingDuration%60).padStart(2,'0')}</Text></View>
-          <TouchableOpacity onPress={stopRecording}><Text style={styles.recSend}>发送</Text></TouchableOpacity>
+        <View style={[styles.recBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <TouchableOpacity style={styles.recordActionButton} onPress={cancelRecording}><Text style={styles.recordActionText}>取消</Text></TouchableOpacity>
+          <View style={styles.recCenter}>
+            <Text style={styles.recDot}>●</Text>
+            <Text style={styles.recHint}>正在录音，松开发送</Text>
+            <Text style={styles.recTime}>{Math.floor(recordingDuration/60)}:{String(recordingDuration%60).padStart(2,'0')}</Text>
+          </View>
+          <TouchableOpacity style={[styles.recordActionButton, styles.recordSendButton]} onPress={stopRecording}><Text style={styles.recordSendText}>发送</Text></TouchableOpacity>
         </View>
       ) : (
-        <View style={styles.inputBar}>
-          <TouchableOpacity style={styles.voiceBtn} onPressIn={handleLongPressIn} onPressOut={handleLongPressOut} onLongPress={handleLongPressCancel}>
-            <Text style={styles.voiceText}>{inputText ? '取消' : '按住说话'}</Text>
+        <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => {
+              setShowMore(false);
+              setVoiceMode((current) => {
+                const next = !current;
+                if (next) {
+                  setInputText('');
+                }
+                return next;
+              });
+            }}
+            accessibilityLabel={voiceMode ? '切回键盘输入' : '切换按住说话'}
+          >
+            <Ionicons name={voiceMode ? 'keypad-outline' : 'mic-outline'} size={20} color="#666666" />
           </TouchableOpacity>
           <View style={styles.inputWrap}>
-            <TextInput style={styles.input} placeholder=" " placeholderTextColor="rgba(0,0,0,0)" value={inputText} onChangeText={setInputText} multiline />
+            {voiceMode ? (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                delayLongPress={180}
+                onLongPress={handleVoiceLongPress}
+                onPressOut={handleLongPressOut}
+                style={[styles.voicePressArea, isRecording && styles.voicePressAreaActive]}
+              >
+                <Text style={[styles.voicePressText, isRecording && styles.voicePressTextActive]}>{isRecording ? '松开发送' : '按住 说话'}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TextInput
+                style={styles.input}
+                placeholder="输入消息"
+                placeholderTextColor="#9A9A9A"
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+              />
+            )}
           </View>
-          {inputText.trim() ? (
+          {!voiceMode && inputText.trim() ? (
             <TouchableOpacity style={styles.sendBtn} onPress={handleSend}><Text style={styles.sendText}>发送</Text></TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.plusBtn} onPress={() => setShowMore(!showMore)}><Text style={styles.plusText}>+</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.plusBtn} onPress={() => setShowMore((current) => !current)} accessibilityLabel="打开更多功能">
+              <Ionicons name={showMore ? 'close-outline' : 'add'} size={20} color="#666666" />
+            </TouchableOpacity>
           )}
         </View>
       )}
 
       {showMore && (
-        <View style={styles.morePanel}>
+        <View style={[styles.morePanel, { paddingBottom: insets.bottom + 22 }]}>
           <View style={styles.moreRow}>
-            <TouchableOpacity style={styles.moreItem} onPress={handleSelectImage}>
-              <View style={styles.moreIcon}><Text>🖼️</Text></View>
+            <TouchableOpacity style={styles.moreItem} onPress={handleSelectImage} accessibilityLabel="从相册选择图片">
+              <View style={styles.moreIcon}><Ionicons name="images-outline" size={26} color="#585858" /></View>
               <Text style={styles.moreLabel}>相册</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.moreItem} onPress={handleTakePhoto}>
-              <View style={styles.moreIcon}><Text>📷</Text></View>
+            <TouchableOpacity style={styles.moreItem} onPress={handleTakePhoto} accessibilityLabel="打开拍照发送图片">
+              <View style={styles.moreIcon}><Ionicons name="camera-outline" size={26} color="#585858" /></View>
               <Text style={styles.moreLabel}>拍照</Text>
             </TouchableOpacity>
           </View>
@@ -197,15 +301,13 @@ export default function ChatWindow({ route, onBack }) {
 
       {messageAction && (
         <TouchableOpacity style={styles.actionOverlay} activeOpacity={1} onPress={() => setMessageAction(null)}>
-          <View style={styles.actionSheet}>
-            <TouchableOpacity style={styles.actionItem} onPress={handleCloudBackup}><Text style={styles.actionText}>☁️ 上云备份</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.actionItem} onPress={handleDeleteMsg}><Text style={styles.actionText}>🗑️ 删除</Text></TouchableOpacity>
+          <View style={[styles.actionSheet, { marginBottom: insets.bottom + 24 }]}>
+            <TouchableOpacity style={styles.actionItem} onPress={handleDeleteMsg}><Text style={styles.actionTextDanger}>删除消息</Text></TouchableOpacity>
             <TouchableOpacity style={styles.actionCancel} onPress={() => setMessageAction(null)}><Text style={styles.cancelText}>取消</Text></TouchableOpacity>
           </View>
         </TouchableOpacity>
       )}
 
-      <CloudBackupModal visible={showCloudModal} onUpload={handleUploadConfirm} onCancel={() => { setShowCloudModal(false); setMessageAction(null); }} />
       <BurnModal visible={showBurnModal} current={burnOption} onSelect={(opt) => { setBurnOption(opt); setShowBurnModal(false); }} onCancel={() => setShowBurnModal(false)} />
     </KeyboardAvoidingView>
   );
@@ -213,36 +315,44 @@ export default function ChatWindow({ route, onBack }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#EDEDED' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#F7F7F7', borderBottomWidth: 1, borderBottomColor: '#E0E0E0' },
-  back: { color: '#07C160', fontSize: 36, fontWeight: '300' },
-  name: { color: '#333', fontSize: 18, fontWeight: '600' },
-  burnBtn: { fontSize: 22 },
-  burnBtnActive: { color: '#ff6b35' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingTop: 12, paddingBottom: 11, backgroundColor: '#F6F6F6', borderBottomWidth: 1, borderBottomColor: '#D8D8D8' },
+  headerIconButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  headerCenter: { flex: 1, alignItems: 'center', paddingHorizontal: 10 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  name: { color: '#111111', fontSize: 17, fontWeight: '600', maxWidth: '100%' },
+  subline: { color: '#8C8C8C', fontSize: 11, marginTop: 2 },
+  burnButtonActive: { backgroundColor: '#DFF5D1' },
   list: { flexGrow: 1, paddingVertical: 10, backgroundColor: '#EDEDED' },
-  inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#F7F7F7', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
-  voiceBtn: { width: 72, height: 36, borderRadius: 6, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginRight: 6, borderWidth: 1, borderColor: '#D9D9D9' },
-  voiceText: { color: '#555', fontSize: 14 },
-  inputWrap: { flex: 1, backgroundColor: '#FFF', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6, maxHeight: 100, borderWidth: 1, borderColor: '#D9D9D9' },
-  input: { color: '#333', fontSize: 17, maxHeight: 90, padding: 0 },
-  sendBtn: { width: 64, height: 36, borderRadius: 6, backgroundColor: '#07C160', justifyContent: 'center', alignItems: 'center', marginLeft: 6 },
-  sendText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
-  plusBtn: { width: 36, height: 36, borderRadius: 6, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginLeft: 6, borderWidth: 1, borderColor: '#D9D9D9' },
-  plusText: { color: '#555', fontSize: 24, fontWeight: '300' },
-  recBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#F7F7F7', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
-  cancel: { color: '#888', fontSize: 15 },
+  inputBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingTop: 7, paddingBottom: 8, backgroundColor: '#F7F7F7', borderTopWidth: 1, borderTopColor: '#D8D8D8' },
+  iconButton: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
+  inputWrap: { flex: 1, height: 38, backgroundColor: '#FFFFFF', borderRadius: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: '#D7D7D7', justifyContent: 'center' },
+  input: { color: '#111111', fontSize: 16, maxHeight: 80, paddingVertical: 0, paddingHorizontal: 0, lineHeight: 20 },
+  voicePressArea: { flex: 1, height: '100%', borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  voicePressAreaActive: { backgroundColor: '#F1F1F1' },
+  voicePressText: { color: '#333333', fontSize: 15, fontWeight: '500' },
+  voicePressTextActive: { color: '#111111' },
+  sendBtn: { minWidth: 60, height: 36, borderRadius: 6, backgroundColor: '#95EC69', justifyContent: 'center', alignItems: 'center', marginLeft: 8, paddingHorizontal: 12 },
+  sendText: { color: '#20330F', fontSize: 14, fontWeight: '600' },
+  plusBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center', marginLeft: 6 },
+  recBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#F7F7F7', borderTopWidth: 1, borderTopColor: '#D8D8D8' },
+  recordActionButton: { minWidth: 58, height: 34, borderRadius: 6, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D7D7D7' },
+  recordActionText: { color: '#4A4A4A', fontSize: 13, fontWeight: '500' },
+  recordSendButton: { backgroundColor: '#95EC69', borderColor: '#95EC69' },
+  recordSendText: { color: '#20330F', fontSize: 13, fontWeight: '600' },
   recCenter: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  recDot: { color: '#07C160', fontSize: 12, marginRight: 10 },
-  recTime: { color: '#333', fontSize: 16 },
-  recSend: { backgroundColor: '#07C160', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 4, color: '#FFF', fontSize: 15, fontWeight: '600' },
-  morePanel: { backgroundColor: '#F7F7F7', borderTopWidth: 1, borderTopColor: '#E0E0E0', paddingVertical: 16, paddingHorizontal: 20 },
-  moreRow: { flexDirection: 'row', gap: 40 },
-  moreItem: { alignItems: 'center' },
-  moreIcon: { width: 52, height: 52, borderRadius: 10, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#D9D9D9' },
-  moreLabel: { color: '#666', fontSize: 12 },
-  actionOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0)', justifyContent: 'flex-end', alignItems: 'center' },
-  actionSheet: { backgroundColor: '#FFF', borderRadius: 12, marginBottom: 100, width: '80%', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 8 },
-  actionItem: { paddingVertical: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  actionText: { color: '#333', fontSize: 16 },
-  actionCancel: { paddingVertical: 16, alignItems: 'center' },
-  cancelText: { color: '#888', fontSize: 16 },
+  recDot: { color: '#E24C4B', fontSize: 12, marginRight: 6 },
+  recHint: { color: '#6A6A6A', fontSize: 13, marginRight: 10 },
+  recTime: { color: '#111111', fontSize: 15, fontWeight: '600' },
+  morePanel: { backgroundColor: '#F7F7F7', borderTopWidth: 1, borderTopColor: '#D8D8D8', paddingTop: 18, paddingBottom: 22, paddingHorizontal: 18 },
+  moreRow: { flexDirection: 'row', gap: 24 },
+  moreItem: { alignItems: 'center', width: 72 },
+  moreIcon: { width: 60, height: 60, borderRadius: 16, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#E3E3E3' },
+  moreLabel: { color: '#666666', fontSize: 12, lineHeight: 16 },
+  actionOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.28)', justifyContent: 'flex-end', alignItems: 'center' },
+  actionSheet: { backgroundColor: '#F7F7F7', borderRadius: 14, marginBottom: 88, width: '82%', overflow: 'hidden' },
+  actionItem: { paddingVertical: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E3E3E3', backgroundColor: '#FFFFFF' },
+  actionText: { color: '#111111', fontSize: 16, fontWeight: '500' },
+  actionTextDanger: { color: '#E24C4B', fontSize: 16, fontWeight: '500' },
+  actionCancel: { paddingVertical: 16, alignItems: 'center', backgroundColor: '#FFFFFF', marginTop: 8 },
+  cancelText: { color: '#111111', fontSize: 16, fontWeight: '500' },
 });

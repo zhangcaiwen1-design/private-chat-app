@@ -1,63 +1,45 @@
-import * as ApiService from './ApiService';
+import {
+  acceptConversationRequest,
+  createConversation,
+  createConversationFromQr,
+  listConversationMessages,
+  listConversations,
+  listIncomingConversationRequests,
+  sendConversationMessage,
+} from './ChatRepository';
 
-// Get contacts from API
 export async function getContacts() {
-  try {
-    const result = await ApiService.getContacts();
-    return result.contacts || [];
-  } catch (error) {
-    console.error('Error getting contacts:', error);
-    return [];
-  }
+  return listConversations();
 }
 
-// Add contact via API
-export async function saveContact(phone, name) {
-  try {
-    const result = await ApiService.addContact(phone, name);
-    return result.contact;
-  } catch (error) {
-    console.error('Error saving contact:', error);
-    throw error;
-  }
+export async function getIncomingFriendRequests() {
+  return listIncomingConversationRequests();
 }
 
-// Add contact by QR code
+export async function acceptFriendRequest(requestId) {
+  return acceptConversationRequest(requestId);
+}
+
+export async function saveContact(contactOrPhone, maybeName) {
+  if (typeof contactOrPhone === 'object') {
+    return createConversation({
+      name: contactOrPhone.name,
+      phone: contactOrPhone.phone,
+      peerUserId: contactOrPhone.peerUserId || null,
+    });
+  }
+
+  return createConversation({ name: maybeName, phone: contactOrPhone });
+}
+
 export async function addContactByQR(qrCode) {
-  try {
-    const result = await ApiService.addContactByQR(qrCode);
-    return result.contact;
-  } catch (error) {
-    console.error('Error adding contact by QR:', error);
-    throw error;
-  }
+  return createConversationFromQr(qrCode);
 }
 
-// Delete contact via API
-export async function deleteContact(contactId) {
-  try {
-    await ApiService.deleteContact(contactId);
-    return true;
-  } catch (error) {
-    console.error('Error deleting contact:', error);
-    return false;
-  }
-}
-
-// Get messages from API
 export async function getMessages(contactId, limit = 50) {
-  try {
-    const result = await ApiService.getMessages(contactId, limit);
-    return result.messages || [];
-  } catch (error) {
-    console.error('Error getting messages:', error);
-    return [];
-  }
+  return listConversationMessages(contactId, limit);
 }
 
-// Save message (sent via API, cached locally for offline)
-export async function saveMessage(contactId, message) {
-  // Messages are sent via API and returned with server-assigned ID
-  // This function is for local caching if needed
-  return message;
+export async function saveMessage(contact, message) {
+  return sendConversationMessage(contact, message);
 }

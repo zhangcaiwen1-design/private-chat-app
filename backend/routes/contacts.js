@@ -1,168 +1,227 @@
 const express = require('express');
+const {
+  acceptFriendRequest,
+  createContact,
+  createFriendRequest,
+  createOrUpdateContactForPeer,
+  findContactByOwnerAndPeerUserId,
+  findUserByPhone,
+  getUser,
+  listContacts,
+  listIncomingFriendRequests,
+  upsertUser,
+} = require('../services/db');
+
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const { query } = require('../services/mysql');
 
-// Get contact list
-router.get('/', async (req, res) => {
+function decodeHeaderValue(value) {
+  if (!value) return '';
   try {
-    const contacts = await query(
-      `SELECT id, friend_id, friend_name, friend_phone, friend_avatar, created_at
-       FROM contacts
-       WHERE user_id = ?
-       ORDER BY created_at DESC`,
-      [req.user.id]
-    );
-
-    res.json({ contacts });
-  } catch (error) {
-    console.error('Get contacts error:', error);
-    res.status(500).json({ error: '获取联系人列表失败' });
+    return decodeURIComponent(value);
+  } catch {
+    return value;
   }
+}
+
+function getCurrentUserContext(req) {
+  return {
+    userId: decodeHeaderValue(req.header('x-user-id') || 'local-user').trim() || 'local-user',
+    displayName: decodeHeaderValue(req.header('x-user-name') || '本机用户').trim() || '本机用户',
+    phone: decodeHeaderValue(req.header('x-user-phone') || '').trim(),
+  };
+}
+
+function parseQrUserId(qrCode) {
+  if (qrCode.startsWith('QR::')) {
+    const parts = qrCode.split('::');
+    return parts[1] || null;
+  }
+  if (qrCode.startsWith('QR-')) {
+    const parts = qrCode.split('-');
+    return parts[1] || null;
+  }
+  return null;
+}
+
+router.get('/', (req, res) => {
+  const currentUser = getCurrentUserContext(req);
+  upsertUser({ ...currentUser, adoptLegacyData: false });
+  res.json({ contacts: listContacts(currentUser.userId) });
 });
 
-// Add contact by phone number
-router.post('/', async (req, res) => {
-  try {
-    const { friend_phone, friend_name } = req.body;
-
-    if (!friend_phone) {
-      return res.status(400).json({ error: '请提供对方手机号' });
-    }
-
-    // Find the friend by phone
-    const friends = await query('SELECT id, phone, name, avatar_url FROM users WHERE phone = ?', [friend_phone]);
-
-    if (friends.length === 0) {
-      return res.status(404).json({ error: '该用户不存在' });
-    }
-
-    const friend = friends[0];
-
-    // Check if already a contact
-    const existing = await query(
-      'SELECT id FROM contacts WHERE user_id = ? AND friend_id = ?',
-      [req.user.id, friend.id]
-    );
-
-    if (existing.length > 0) {
-      return res.status(400).json({ error: '该联系人已存在' });
-    }
-
-    // Create contact
-    const id = uuidv4();
-    const now = Date.now();
-
-    await query(
-      'INSERT INTO contacts (id, user_id, friend_id, friend_name, friend_phone, friend_avatar, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, req.user.id, friend.id, friend_name || friend.name, friend.phone, friend.avatar_url, now]
-    );
-
-    const contact = {
-      id,
-      friend_id: friend.id,
-      friend_name: friend_name || friend.name,
-      friend_phone: friend.phone,
-      friend_avatar: friend.avatar_url,
-      created_at: now
-    };
-
-    res.json({ contact });
-  } catch (error) {
-    console.error('Add contact error:', error);
-    res.status(500).json({ error: '添加联系人失败' });
-  }
+router.get('/requests/incoming', (req, res) => {
+  const currentUser = getCurrentUserContext(req);
+  upsertUser({ ...currentUser, adoptLegacyData: false });
+  res.json({ requests: listIncomingFriendRequests(currentUser.userId) });
 });
 
-// Add contact via QR code
-router.post('/qr-add', async (req, res) => {
-  try {
-    const { qr_code } = req.body;
+router.post('/requests/:requestId/accept', (req, res) => {
+  const currentUser = getCurrentUserContext(req);
+  upsertUser({ ...currentUser, adoptLegacyData: false });
+  const result = acceptFriendRequest(req.params.requestId, currentUser.userId);
 
-    if (!qr_code) {
-      return res.status(400).json({ error: '请提供二维码信息' });
-    }
-
-    // Parse QR code: PRIVATE-userId-timestamp
-    if (!qr_code.startsWith('PRIVATE-')) {
-      return res.status(400).json({ error: '无效的二维码' });
-    }
-
-    const parts = qr_code.split('-');
-    if (parts.length < 2) {
-      return res.status(400).json({ error: '无效的二维码格式' });
-    }
-
-    const friendId = parts[1];
-
-    // Can't add yourself
-    if (friendId === req.user.id) {
-      return res.status(400).json({ error: '不能添加自己为联系人' });
-    }
-
-    // Find the friend
-    const friends = await query('SELECT id, phone, name, avatar_url FROM users WHERE id = ?', [friendId]);
-
-    if (friends.length === 0) {
-      return res.status(404).json({ error: '用户不存在' });
-    }
-
-    const friend = friends[0];
-
-    // Check if already a contact
-    const existing = await query(
-      'SELECT id FROM contacts WHERE user_id = ? AND friend_id = ?',
-      [req.user.id, friend.id]
-    );
-
-    if (existing.length > 0) {
-      return res.status(400).json({ error: '该联系人已存在' });
-    }
-
-    // Create contact
-    const id = uuidv4();
-    const now = Date.now();
-
-    await query(
-      'INSERT INTO contacts (id, user_id, friend_id, friend_name, friend_phone, friend_avatar, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, req.user.id, friend.id, friend.name, friend.phone, friend.avatar_url, now]
-    );
-
-    const contact = {
-      id,
-      friend_id: friend.id,
-      friend_name: friend.name,
-      friend_phone: friend.phone,
-      friend_avatar: friend.avatar_url,
-      created_at: now
-    };
-
-    res.json({ contact });
-  } catch (error) {
-    console.error('QR add contact error:', error);
-    res.status(500).json({ error: '添加联系人失败' });
+  if (result.status === 'not_found') {
+    return res.status(404).json({ error: '好友申请不存在' });
   }
+  if (result.status === 'forbidden') {
+    return res.status(403).json({ error: '不能处理别人的好友申请' });
+  }
+  if (result.status === 'already_accepted') {
+    return res.status(409).json({ error: '该好友申请已通过' });
+  }
+  if (result.status === 'user_missing') {
+    return res.status(404).json({ error: '好友资料不存在' });
+  }
+
+  res.json({
+    success: true,
+    contact: result.targetContact,
+    peer_contact: result.requesterContact,
+  });
 });
 
-// Delete contact
-router.delete('/:contactId', async (req, res) => {
-  try {
-    const { contactId } = req.params;
+router.post('/', (req, res) => {
+  const currentUser = getCurrentUserContext(req);
+  upsertUser({ ...currentUser, adoptLegacyData: false });
 
-    const result = await query(
-      'DELETE FROM contacts WHERE id = ? AND user_id = ?',
-      [contactId, req.user.id]
-    );
+  const { name, phone, friend_name, friend_phone, peer_user_id } = req.body;
+  const contactName = (name || friend_name || '').trim();
+  const contactPhone = (phone || friend_phone || '').trim();
+  const peerUserId = (peer_user_id || '').trim() || null;
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: '联系人不存在' });
+  if (!contactName) {
+    return res.status(400).json({ error: '联系人姓名不能为空' });
+  }
+
+  if (peerUserId) {
+    if (peerUserId === currentUser.userId) {
+      return res.status(400).json({ error: '不能添加自己' });
     }
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Delete contact error:', error);
-    res.status(500).json({ error: '删除联系人失败' });
+    const existing = findContactByOwnerAndPeerUserId(currentUser.userId, peerUserId);
+    if (existing) {
+      return res.json({
+        contact: existing,
+        request_status: existing.sync_state === 'matched' ? 'already_friends' : 'pending',
+      });
+    }
+
+    const contact = createContact({
+      ownerUserId: currentUser.userId,
+      name: contactName,
+      phone: contactPhone,
+      peerUserId,
+      syncState: 'request_sent',
+      lastMessage: '等待对方通过好友申请',
+    });
+
+    const request = createFriendRequest({
+      requesterUserId: currentUser.userId,
+      requesterName: currentUser.displayName,
+      requesterPhone: currentUser.phone,
+      requesterContactId: contact.id,
+      targetUserId: peerUserId,
+      targetPhone: contactPhone,
+      channel: 'qr',
+    });
+
+    return res.json({ contact, request_status: request.status, friend_request: request });
   }
+
+  if (contactPhone) {
+    const matchedUser = findUserByPhone(contactPhone);
+    if (matchedUser && matchedUser.user_id !== currentUser.userId) {
+      const existing = findContactByOwnerAndPeerUserId(currentUser.userId, matchedUser.user_id);
+      if (existing) {
+        return res.json({
+          contact: existing,
+          request_status: existing.sync_state === 'matched' ? 'already_friends' : 'pending',
+        });
+      }
+
+      const contact = createContact({
+        ownerUserId: currentUser.userId,
+        name: contactName,
+        phone: contactPhone,
+        peerUserId: matchedUser.user_id,
+        syncState: 'request_sent',
+        lastMessage: '等待对方通过好友申请',
+      });
+
+      const request = createFriendRequest({
+        requesterUserId: currentUser.userId,
+        requesterName: currentUser.displayName,
+        requesterPhone: currentUser.phone,
+        requesterContactId: contact.id,
+        targetUserId: matchedUser.user_id,
+        targetPhone: contactPhone,
+        channel: 'phone',
+      });
+
+      return res.json({ contact, request_status: request.status, friend_request: request });
+    }
+  }
+
+  const contact = createContact({
+    ownerUserId: currentUser.userId,
+    name: contactName,
+    phone: contactPhone,
+    peerUserId: null,
+    syncState: 'local_only',
+    lastMessage: '',
+  });
+
+  res.json({ contact, request_status: 'local_only' });
+});
+
+router.post('/qr-add', (req, res) => {
+  const currentUser = getCurrentUserContext(req);
+  upsertUser({ ...currentUser, adoptLegacyData: false });
+
+  const { qr_code } = req.body;
+  const qrCode = (qr_code || '').trim();
+
+  if (!qrCode) {
+    return res.status(400).json({ error: '二维码不能为空' });
+  }
+
+  const targetUserId = parseQrUserId(qrCode);
+  if (!targetUserId) {
+    return res.status(400).json({ error: '二维码格式无效' });
+  }
+  if (targetUserId === currentUser.userId) {
+    return res.status(400).json({ error: '不能添加自己' });
+  }
+
+  const existing = findContactByOwnerAndPeerUserId(currentUser.userId, targetUserId);
+  if (existing) {
+    return res.json({
+      contact: existing,
+      request_status: existing.sync_state === 'matched' ? 'already_friends' : 'pending',
+    });
+  }
+
+  const targetUser = getUser(targetUserId);
+  const contact = createOrUpdateContactForPeer({
+    ownerUserId: currentUser.userId,
+    peerUserId: targetUserId,
+    name: targetUser?.display_name || targetUserId,
+    phone: targetUser?.phone || '',
+    syncState: 'request_sent',
+    lastMessage: '等待对方通过好友申请',
+  });
+
+  const request = createFriendRequest({
+    requesterUserId: currentUser.userId,
+    requesterName: currentUser.displayName,
+    requesterPhone: currentUser.phone,
+    requesterContactId: contact.id,
+    targetUserId,
+    targetPhone: targetUser?.phone || '',
+    channel: 'qr',
+  });
+
+  res.json({ contact, request_status: request.status, friend_request: request });
 });
 
 module.exports = router;

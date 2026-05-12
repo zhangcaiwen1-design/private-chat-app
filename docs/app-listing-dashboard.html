@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>App 上架合规交互工作流</title>
+  <style>
+    :root{--ink:#211915;--muted:#776a60;--paper:#fff8eb;--bg:#f3dfc4;--line:#dec8ad;--gold:#b86b12;--green:#2f7d63;--red:#b34032;--blue:#3f6d9a;--purple:#7652a6;--orange:#c46d22;--shadow:0 22px 70px rgba(65,42,20,.16)}
+    *{box-sizing:border-box} body{margin:0;color:var(--ink);font-family:"Microsoft YaHei","Noto Serif SC",serif;background:radial-gradient(circle at 12% 0,rgba(243,177,86,.36),transparent 34rem),linear-gradient(135deg,#f0d8b8,#fff8eb 48%,#ead4b8);min-height:100vh}.wrap{width:min(1480px,calc(100% - 32px));margin:auto;padding:28px 0 60px}.hero,.card,.task{border:1px solid rgba(126,88,46,.2);background:rgba(255,248,235,.78);box-shadow:var(--shadow);border-radius:28px}.hero{padding:28px;display:grid;grid-template-columns:1.15fr .85fr;gap:22px}.eyebrow{display:inline-block;color:var(--gold);font-weight:800;border:1px solid rgba(184,107,18,.25);border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.4)}h1{font-size:clamp(34px,5vw,72px);line-height:.98;letter-spacing:-.07em;margin:16px 0 12px}.sub{color:var(--muted);line-height:1.75;font-size:17px}.card{padding:20px}.label{color:var(--muted);font-size:13px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.stage-title{font-size:30px;font-weight:900;margin:8px 0}.recommend{display:grid;gap:10px;margin-top:12px}.rec{padding:13px;border-radius:17px;background:#fffdf7;border:1px solid rgba(126,88,46,.14);display:grid;grid-template-columns:auto 1fr;gap:10px}.pill{display:inline-flex;align-items:center;justify-content:center;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:900}.p0{background:rgba(179,64,50,.1);color:var(--red)}.p1{background:rgba(184,107,18,.12);color:var(--gold)}.p2{background:rgba(63,109,154,.12);color:var(--blue)}.blocked{background:rgba(179,64,50,.1);color:var(--red)}.doing{background:rgba(184,107,18,.12);color:var(--gold)}.done{background:rgba(47,125,99,.12);color:var(--green)}.paused{background:rgba(118,82,166,.12);color:var(--purple)}.bar{height:16px;background:#ead8c1;border-radius:999px;overflow:hidden;margin-top:12px}.bar span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),#f4b55d);transition:.25s}.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0}.btn{border:1px solid rgba(126,88,46,.2);background:#fff9ef;border-radius:999px;padding:10px 14px;cursor:pointer;font-weight:800;color:var(--ink)}.btn:hover{transform:translateY(-1px)}.grid{display:grid;grid-template-columns:340px 1fr;gap:18px}.stages{display:grid;gap:10px}.stage{padding:16px;border-radius:20px;border:1px solid rgba(126,88,46,.18);background:rgba(255,248,235,.7);cursor:pointer}.stage.active{background:#2d241d;color:#fff8eb}.stage small{display:block;color:inherit;opacity:.65;margin-top:5px}.tasks{display:grid;gap:12px}.task{padding:16px;box-shadow:0 10px 34px rgba(65,42,20,.08)}.task-head{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start}.task h3{margin:0;font-size:18px}.task p{margin:7px 0 0;color:var(--muted);line-height:1.55}.task.done-card{opacity:.66}.task.blocked-card{border-color:rgba(179,64,50,.35);background:rgba(255,238,232,.8)}select{border:1px solid rgba(126,88,46,.25);border-radius:999px;background:#fffdf7;padding:8px 10px;font-weight:800}.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.deps{font-size:13px;color:var(--muted);margin-top:8px}.empty{padding:24px;text-align:center;color:var(--muted)}.note{margin-top:18px;padding:16px;border-left:5px solid var(--gold);border-radius:18px;background:rgba(255,248,235,.7);color:var(--muted);line-height:1.7}@media(max-width:960px){.hero,.grid{grid-template-columns:1fr}.wrap{width:min(100% - 20px,1480px)}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div>
+      <span class="eyebrow">本地交互版 · 自动保存到当前浏览器</span>
+      <h1>App 上架合规统筹工作流</h1>
+      <p class="sub">勾状态、看依赖、按优先级多头并进。系统会根据已完成事项自动推荐“现在最该做什么”。</p>
+      <div class="toolbar"><button class="btn" id="resetBtn">重置进度</button><button class="btn" id="exportBtn">导出进度 JSON</button><button class="btn" id="showAllBtn">显示全部任务</button><button class="btn" id="showReadyBtn">只看可推进任务</button></div>
+    </div>
+    <div class="card">
+      <div class="label">当前阶段</div><div class="stage-title" id="currentStage">阶段 1：公司主体调整</div>
+      <div class="label">推荐下一步</div><div class="recommend" id="recommendations"></div>
+      <div style="margin-top:14px" class="label">总体进度</div><div class="bar"><span id="progressBar"></span></div><p class="sub" id="progressText"></p>
+    </div>
+  </section>
+
+  <div class="grid" style="margin-top:20px">
+    <aside class="stages" id="stageList"></aside>
+    <main><div class="tasks" id="taskList"></div><div class="note" id="nextNote"></div></main>
+  </div>
+</div>
+<script>
+const statusMap={todo:['⬜','未开始'],doing:['🟡','进行中'],submitted:['🟣','已提交/审核中'],blocked:['🔴','阻塞'],revise:['🟠','需修改'],done:['✅','已完成'],paused:['⏸️','暂缓']};
+const stages=[
+ {id:'s1',name:'公司主体调整',goal:'先完成公司名称和经营范围，为后续资质打底'},
+ {id:'s2',name:'基础合规材料',goal:'整理新主体资料、域名和协议草稿'},
+ {id:'s3',name:'软著申请',goal:'准备说明书、源码材料并提交软著'},
+ {id:'s4',name:'域名 / ICP / App 备案',goal:'完成协议链接、ICP备案和 App 备案准备'},
+ {id:'s5',name:'技术与上架材料',goal:'把 MVP 整理成可审核材料包'},
+ {id:'s6',name:'国内安卓商店提交',goal:'提交首个安卓商店并处理反馈'},
+ {id:'s7',name:'支付与后续平台',goal:'App 内支付、Google Play、App Store 后续规划'}
+];
+const tasks=[
+ {id:'company_name',stage:'s1',title:'公司名称变更',owner:'用户',p:0,status:'doing',parallel:'主体线',next:'已预约 2026-05-06 让代账会计办理公司名称变更。',done:'新名称核名通过，变更申请提交或完成。',note:'进展：2026-04-30 用户已预约 2026-05-06 让代账会计协助办理。'},
+ {id:'scope',stage:'s1',title:'经营范围增项',owner:'用户',p:0,status:'doing',parallel:'主体线',next:'已预约 2026-05-06 让代账会计办理经营范围增项。',done:'新执照包含软件开发、软件销售、信息技术服务等。',note:'进展：2026-04-30 用户已预约 2026-05-06 与公司名称变更一起办理。'},
+ {id:'license_archive',stage:'s1',title:'新营业执照归档',owner:'用户',p:0,status:'todo',deps:['company_name','scope'],parallel:'主体线',next:'变更完成后下载/扫描新版营业执照。',done:'新营业执照电子版和扫描件已保存。'},
+ {id:'sync',stage:'s1',title:'公章/税务/银行同步',owner:'用户',p:1,status:'todo',deps:['license_archive'],parallel:'主体线',next:'根据代账或窗口要求处理同步。',done:'必要平台信息与新主体一致。'},
+ {id:'copyright_name',stage:'s3',title:'软著名称确认',owner:'用户 + Claude',p:0,status:'todo',parallel:'软著线',next:'从候选名称里确定正式名称和简称。',done:'软著名称和简称确定。'},
+ {id:'domain',stage:'s2',title:'域名购买与主体确认',owner:'用户',p:0,status:'doing',parallel:'备案线',next:'已用个人名义购买 yifan1.com；新公司主体确定后判断是否转公司实名/备案，或另购公司域名。',done:'域名已购买，且主体与上架公司一致或已确认可用方案。',note:'进展：2026-04-30 用户说明 yifan1.com 是个人名义购买。注意：不能直接当作公司主体备案完成。'},
+ {id:'subject_folder',stage:'s2',title:'新主体资料文件夹',owner:'用户',p:0,status:'todo',deps:['license_archive'],parallel:'主体线',next:'整理营业执照、法人身份证、邮箱、电话、地址、公章等。',done:'所有主体材料集中保存。'},
+ {id:'privacy',stage:'s2',title:'隐私政策草稿',owner:'Claude',p:0,status:'todo',parallel:'协议线',next:'根据功能和数据收集情况起草。',done:'有可发布的隐私政策初稿。'},
+ {id:'terms',stage:'s2',title:'用户协议草稿',owner:'Claude',p:0,status:'todo',parallel:'协议线',next:'根据服务规则、账号和行为规范起草。',done:'有可发布的用户协议初稿。'},
+ {id:'member_terms',stage:'s2',title:'会员服务协议草稿',owner:'Claude',p:1,status:'todo',parallel:'协议线',next:'根据会员权益、价格、赠送月卡和退款规则起草。',done:'有会员协议初稿。'},
+ {id:'copyright_doc',stage:'s3',title:'软著说明书',owner:'Claude',p:1,status:'todo',deps:['copyright_name'],parallel:'软著线',next:'根据 MVP 功能整理说明书。',done:'说明书可提交。'},
+ {id:'copyright_code',stage:'s3',title:'软著源码材料',owner:'Claude',p:1,status:'todo',parallel:'软著线',next:'整理前后各 30 页源码规则，避开密钥。',done:'源码材料不含密钥、token、证书。'},
+ {id:'copyright_submit',stage:'s3',title:'软著提交',owner:'用户/代办',p:1,status:'todo',deps:['license_archive','copyright_name','copyright_doc','copyright_code'],parallel:'软著线',next:'选择自办或代办加急并提交。',done:'软著申请已提交。'},
+ {id:'site_pages',stage:'s2',title:'官网/协议页面结构',owner:'用户 + Claude',p:1,status:'todo',deps:['domain','privacy','terms'],parallel:'备案线',next:'确定首页、隐私政策、用户协议等页面结构。',done:'页面结构明确。'},
+ {id:'icp_submit',stage:'s4',title:'ICP 备案提交',owner:'用户',p:1,status:'todo',deps:['license_archive','domain'],parallel:'备案线',next:'在云服务商备案系统提交。',done:'ICP 备案已提交。'},
+ {id:'icp_done',stage:'s4',title:'ICP 审核通过',owner:'用户',p:1,status:'todo',deps:['icp_submit'],parallel:'备案线',next:'等待管局审核并处理退回。',done:'ICP 备案号取得。'},
+ {id:'permissions',stage:'s5',title:'权限清单',owner:'Claude',p:0,status:'todo',parallel:'技术线',next:'检查代码和配置，整理每个权限用途。',done:'每个权限都有使用场景说明。'},
+ {id:'sdk',stage:'s5',title:'第三方 SDK 清单',owner:'Claude',p:0,status:'todo',parallel:'技术线',next:'检查依赖和服务方案。',done:'每个 SDK 都有用途和隐私说明。'},
+ {id:'package',stage:'s5',title:'安卓包名与签名',owner:'Claude/用户',p:1,status:'todo',parallel:'技术线',next:'确认正式包名、签名和版本号规则。',done:'包名稳定，签名证书安全保存。'},
+ {id:'store_copy',stage:'s5',title:'商店文案',owner:'Claude',p:1,status:'todo',deps:['privacy','terms'],parallel:'商店线',next:'准备标题、副标题、简介、关键词。',done:'文案不强调防查、隐藏、规避。'},
+ {id:'screenshots',stage:'s5',title:'商店截图',owner:'用户 + Claude',p:1,status:'todo',parallel:'商店线',next:'用 MVP 生成 4–6 张截图。',done:'截图素材完成。'},
+ {id:'app_filing',stage:'s4',title:'App 备案提交',owner:'用户',p:2,status:'todo',deps:['icp_done','package','privacy','terms'],parallel:'备案线',next:'准备 App 名称、图标、包名、域名、协议链接并提交。',done:'App 备案已提交。'},
+ {id:'dev_account',stage:'s6',title:'国内安卓开发者账号',owner:'用户',p:1,status:'todo',deps:['license_archive'],parallel:'商店线',next:'用新公司主体注册企业开发者账号。',done:'开发者账号认证通过。'},
+ {id:'store_submit',stage:'s6',title:'首个安卓商店提交',owner:'用户 + Claude',p:2,status:'todo',deps:['dev_account','package','privacy','terms','permissions','sdk','store_copy','screenshots'],parallel:'商店线',next:'选择首发渠道并上传材料。',done:'至少一个国内安卓商店提交审核。'},
+ {id:'payment',stage:'s7',title:'支付商户号',owner:'用户',p:2,status:'paused',parallel:'支付线',next:'App 内付费需要时再申请。',done:'商户号开通并可结算。'},
+ {id:'google',stage:'s7',title:'Google Play',owner:'用户 + Claude',p:3,status:'paused',parallel:'海外线',next:'国内安卓流程跑通后再规划。',done:'Google Play 提交策略明确。'},
+ {id:'ios',stage:'s7',title:'App Store',owner:'用户 + Claude',p:3,status:'paused',parallel:'iOS线',next:'后续单独评估合规包装。',done:'App Store 版本策略明确。'}
+];
+const key='appListingWorkflow.v2';let state=JSON.parse(localStorage.getItem(key)||'{}');let activeStage='all';let readyOnly=false;
+function getStatus(t){return state[t.id]||t.status}function setStatus(id,s){state[id]=s;localStorage.setItem(key,JSON.stringify(state));render()}function isDone(id){return getStatus(tasks.find(t=>t.id===id))==='done'}function depsMet(t){return !t.deps||t.deps.every(isDone)}function isReady(t){let s=getStatus(t);return !['done','paused'].includes(s)&&depsMet(t)}function priorityLabel(p){return p===0?'P0最高':p===1?'P1重要':p===2?'P2后续':'P3暂缓'}
+function recommendations(){return tasks.filter(isReady).sort((a,b)=>a.p-b.p||stages.findIndex(s=>s.id===a.stage)-stages.findIndex(s=>s.id===b.stage)).slice(0,6)}
+function currentStage(){let rec=recommendations()[0];return rec?stages.find(s=>s.id===rec.stage):stages[stages.length-1]}
+function render(){let done=tasks.filter(t=>getStatus(t)==='done').length, total=tasks.filter(t=>getStatus(t)!=='paused').length;document.getElementById('progressBar').style.width=Math.round(done/total*100)+'%';document.getElementById('progressText').textContent=`已完成 ${done} / ${total} 个非暂缓任务。`;
+ let cs=currentStage();document.getElementById('currentStage').textContent='阶段 '+(stages.findIndex(s=>s.id===cs.id)+1)+'：'+cs.name;
+ let recs=recommendations();document.getElementById('recommendations').innerHTML=recs.length?recs.map(t=>`<div class="rec"><span class="pill p${Math.min(t.p,2)}">${priorityLabel(t.p)}</span><div><b>${t.title}</b><br><small>${t.parallel}｜${t.owner}｜${t.next}</small></div></div>`).join(''):'<div class="rec"><span>✅</span><div><b>当前没有可推进任务</b><br><small>检查是否有阻塞或暂缓项需要调整。</small></div></div>';
+ document.getElementById('stageList').innerHTML='<div class="stage '+(activeStage==='all'?'active':'')+'" onclick="activeStage=\'all\';render()"><b>全部任务</b><small>查看完整工作流</small></div>'+stages.map((s,i)=>{let arr=tasks.filter(t=>t.stage===s.id), d=arr.filter(t=>getStatus(t)==='done').length;return `<div class="stage ${activeStage===s.id?'active':''}" onclick="activeStage='${s.id}';render()"><b>${String(i+1).padStart(2,'0')} ${s.name}</b><small>${d}/${arr.length} 完成｜${s.goal}</small></div>`}).join('');
+ let list=tasks.filter(t=>activeStage==='all'||t.stage===activeStage).filter(t=>!readyOnly||isReady(t));
+ document.getElementById('taskList').innerHTML=list.length?list.map(taskHtml).join(''):'<div class="empty card">当前筛选下没有任务。</div>';
+ document.getElementById('nextNote').innerHTML='<b>统筹原则：</b>优先推进 P0；同一时间可以并行推进“主体线、协议线、软著线、备案线、技术线”。遇到依赖未完成的任务先不做，避免返工。';}
+function taskHtml(t){let s=getStatus(t), sm=statusMap[s], blocked=!depsMet(t)&&!['done','paused'].includes(s);let depText=t.deps?`依赖：${t.deps.map(id=>tasks.find(x=>x.id===id).title+(isDone(id)?'✅':'⬜')).join('、')}`:'无前置依赖，可直接推进';let note=t.note?`<p><b>进展记录：</b>${t.note}</p>`:'';return `<div class="task ${s==='done'?'done-card':''} ${blocked?'blocked-card':''}"><div class="task-head"><span class="pill ${s==='done'?'done':s==='doing'?'doing':s==='blocked'?'blocked':s==='paused'?'paused':'p2'}">${sm[0]} ${sm[1]}</span><div><h3>${t.title}</h3><p>${t.next}</p>${note}<div class="meta"><span class="pill p${Math.min(t.p,2)}">${priorityLabel(t.p)}</span><span class="pill">${t.parallel}</span><span class="pill">负责人：${t.owner}</span></div><div class="deps">${blocked?'🔴 前置未完成：':''}${depText}</div><p><b>完成标准：</b>${t.done}</p></div><select onchange="setStatus('${t.id}',this.value)">${Object.entries(statusMap).map(([k,v])=>`<option value="${k}" ${k===s?'selected':''}>${v[0]} ${v[1]}</option>`).join('')}</select></div></div>`}
+document.getElementById('resetBtn').onclick=()=>{if(confirm('确定重置本地进度？')){localStorage.removeItem(key);state={};render()}};document.getElementById('exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='app-listing-progress.json';a.click()};document.getElementById('showAllBtn').onclick=()=>{readyOnly=false;render()};document.getElementById('showReadyBtn').onclick=()=>{readyOnly=true;render()};render();
+</script>
+</body>
+</html>

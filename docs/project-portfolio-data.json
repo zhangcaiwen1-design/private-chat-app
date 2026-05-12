@@ -1,0 +1,377 @@
+{
+  "version": 4,
+  "updatedAt": "2026-05-01",
+  "dashboardMode": "portfolio-lifecycle-v4",
+  "philosophy": {
+    "headline": "不追风口，追真实痛点；像价值投资一样做 APP。",
+    "principles": [
+      "只在自己真正熟悉的行业、工作和生活场景里优先下注。",
+      "任何类型的 APP 都可以做，关键看是否切中真实痛点。",
+      "评分不是为了放弃项目，而是为了发现短板并持续优化。",
+      "AI 降低边际成本，因此可以用项目组合方式长期复利。",
+      "每个项目都要经历：真实需求 → 产品功能 → 对外话术 → 推广场景。"
+    ]
+  },
+  "scoreDimensions": [
+    {
+      "id": "explicitPain",
+      "name": "显性痛点",
+      "description": "是否解决明确麻烦、低效、出错、重复劳动。"
+    },
+    {
+      "id": "hiddenNeed",
+      "name": "隐性需求",
+      "description": "是否触及孤独、欲望、面子、焦虑、隐私、关系等不方便公开表达的需求。"
+    },
+    {
+      "id": "frequency",
+      "name": "频率",
+      "description": "用户遇到问题的频率。"
+    },
+    {
+      "id": "audienceClarity",
+      "name": "人群清晰度",
+      "description": "是否能一句话说清谁需要它。"
+    },
+    {
+      "id": "solutionEffect",
+      "name": "解决效果",
+      "description": "App/AI 是否明显比现有办法更省事、更快、更爽。"
+    },
+    {
+      "id": "paymentPotential",
+      "name": "付费可能性",
+      "description": "用户是否愿意为省事、省心、机会、陪伴、隐私付费。"
+    },
+    {
+      "id": "acquisitionReach",
+      "name": "获客可达性",
+      "description": "目标用户是否有清晰渠道可触达。"
+    },
+    {
+      "id": "mvpDifficulty",
+      "name": "MVP 难度",
+      "description": "能否用最小版本快速验证，分数越高代表越容易。"
+    },
+    {
+      "id": "complianceSafety",
+      "name": "合规安全",
+      "description": "上架、支付、内容、隐私、行业监管风险是否可控，分数越高代表越安全。"
+    },
+    {
+      "id": "founderFit",
+      "name": "创始人熟悉度",
+      "description": "是否来自用户亲身经历或熟悉领域。"
+    }
+  ],
+  "workflowModules": [
+    "创始人痛点雷达",
+    "项目评分器",
+    "痛点转译链",
+    "MVP 工作流",
+    "上架与合规",
+    "AI 推广增长引擎",
+    "数据复盘与自动优化"
+  ],
+  "lifecycleTracks": [
+    {
+      "id": "opportunity",
+      "name": "机会轨",
+      "purpose": "判断项目值不值得进入 MVP。",
+      "outputs": [
+        "痛点雷达卡",
+        "10 维项目评分",
+        "目标人群定义",
+        "MVP 候选方案",
+        "合规风险判断",
+        "下一步验证动作"
+      ]
+    },
+    {
+      "id": "mvp",
+      "name": "MVP 轨",
+      "purpose": "把想法做成可以演示、可以试用、可以收费验证的最小版本。",
+      "outputs": [
+        "核心功能闭环",
+        "15 秒演示路径",
+        "会员价值点",
+        "付费入口",
+        "赠送/邀请机制",
+        "当前版本可测试清单"
+      ]
+    },
+    {
+      "id": "compliance",
+      "name": "上架合规轨",
+      "purpose": "把项目从本地能跑推进到能提交平台审核。",
+      "outputs": [
+        "公司主体状态",
+        "经营范围状态",
+        "域名和备案状态",
+        "软著名称与材料",
+        "隐私政策、用户协议、会员协议",
+        "权限清单、SDK 清单",
+        "商店文案、截图、测试账号",
+        "审核反馈处理记录"
+      ]
+    },
+    {
+      "id": "promotion",
+      "name": "推广验证轨",
+      "purpose": "让真实用户看到、试用、咨询、付费或反馈。",
+      "outputs": [
+        "目标渠道清单",
+        "私域/微信群试用方案",
+        "咸鱼、淘宝、拼多多、抖音素材",
+        "商品标题、主图卖点、短视频脚本",
+        "询单话术",
+        "试用反馈表",
+        "成交、咨询、退款、留存记录"
+      ]
+    },
+    {
+      "id": "productization",
+      "name": "产品化轨",
+      "purpose": "把内部跑通的爆款 APP 生产流程沉淀成可复用、可展示、未来可对外销售的产品。",
+      "outputs": [
+        "标准模板",
+        "项目评分器",
+        "痛点雷达表",
+        "阶段工作流",
+        "总控台看板",
+        "案例库",
+        "对外产品定位"
+      ]
+    }
+  ],
+  "dailyDashboard": {
+    "moneyProject": {
+      "title": "今天最该赚钱的项目",
+      "projectId": "frozen-order",
+      "summary": "冻品开单助手开发已较完整，下一步是找真实冻品批发用户试用、推广、上架和收费验证。",
+      "nextAction": "设计首批真实用户试用推广方案，并准备同行微信群或熟人渠道触达文案。"
+    },
+    "blockedItem": {
+      "title": "今天最卡住的事项",
+      "projectId": "private-chat",
+      "summary": "私密聊天助手的公司主体、经营范围、域名主体、软著名称、新营业执照和备案材料会影响后续上架。",
+      "requiresUserAction": true,
+      "nextAction": "用户本人继续推进公司名称、经营范围、软著名称和域名主体确认。"
+    },
+    "claudeTasks": {
+      "title": "今天可以交给 Claude 的事项",
+      "items": [
+        {
+          "projectId": "private-chat",
+          "text": "起草隐私政策、用户协议、会员协议、软著说明、商店文案、权限说明、SDK 清单和截图脚本。"
+        },
+        {
+          "projectId": "frozen-order",
+          "text": "生成推广话术、试用流程、同行微信群邀请文案、上架材料和客户反馈表。"
+        },
+        {
+          "projectId": "golden-idea",
+          "text": "把已跑过的真实项目流程沉淀成模板、评分器和总控台模块。"
+        }
+      ]
+    },
+    "watchProjects": {
+      "title": "今天保持观察的项目",
+      "items": [
+        {
+          "projectId": "ai-girlfriend",
+          "text": "继续补痛点雷达、合规边界和 MVP 候选。"
+        },
+        {
+          "projectId": "tianyuan",
+          "text": "继续补本地交友征婚的目标用户、真实性机制、线下获客和合规风险。"
+        },
+        {
+          "projectId": "golden-idea",
+          "text": "从真实项目中沉淀，不急着独立产品化。"
+        }
+      ]
+    }
+  },
+  "projects": [
+    {
+      "id": "frozen-order",
+      "name": "冻品开单助手",
+      "category": "业务工具",
+      "stage": "推广验证轨 + 上架合规轨",
+      "priority": "P0",
+      "summary": "面向冻品批发从业者的开单、客户、商品、订单效率工具。",
+      "founderFit": "来自用户熟悉的家庭冻品批发生意和行业关系。",
+      "currentFocus": "进入真实试用和推广验证，不继续只在代码层打磨。",
+      "blockers": [
+        "需要首批真实冻品批发用户试用",
+        "需要准备推广话术、试用流程和反馈表"
+      ],
+      "subflows": [],
+      "scores": {
+        "explicitPain": 8,
+        "hiddenNeed": 3,
+        "frequency": 8,
+        "audienceClarity": 8,
+        "solutionEffect": 7,
+        "paymentPotential": 6,
+        "acquisitionReach": 8,
+        "mvpDifficulty": 7,
+        "complianceSafety": 8,
+        "founderFit": 9
+      },
+      "tracks": [
+        "promotion",
+        "compliance"
+      ],
+      "nextSmallAction": "设计试用推广方案，准备首批真实用户触达。",
+      "moneyDistance": "最近",
+      "requiresUserAction": false,
+      "claudeCanAdvance": true
+    },
+    {
+      "id": "ai-girlfriend",
+      "name": "AI 女友",
+      "category": "AI 情感产品",
+      "stage": "机会轨",
+      "priority": "P2",
+      "summary": "AI 陪伴、情绪价值、亲密互动和订阅付费方向。",
+      "founderFit": "来自用户对中年情感、陪伴和欲望缺口的亲身理解。",
+      "currentFocus": "继续补痛点雷达、合规边界和 MVP 候选。",
+      "blockers": [
+        "合规边界待定义",
+        "目标人群和 MVP 候选待聚焦"
+      ],
+      "subflows": [],
+      "scores": {
+        "explicitPain": 5,
+        "hiddenNeed": 9,
+        "frequency": 7,
+        "audienceClarity": 6,
+        "solutionEffect": 6,
+        "paymentPotential": 8,
+        "acquisitionReach": 6,
+        "mvpDifficulty": 5,
+        "complianceSafety": 4,
+        "founderFit": 8
+      },
+      "tracks": [
+        "opportunity"
+      ],
+      "nextSmallAction": "补痛点雷达、目标人群、合规边界。",
+      "moneyDistance": "观察",
+      "requiresUserAction": false,
+      "claudeCanAdvance": true
+    },
+    {
+      "id": "private-chat",
+      "name": "私密聊天助手",
+      "category": "隐私/亲密沟通",
+      "stage": "MVP 轨 + 上架合规轨",
+      "priority": "P0",
+      "summary": "计算器入口、双人私密聊天、会员月卡、赠送机制。",
+      "founderFit": "来自用户对亲密沟通、隐私边界和情感需求的理解。",
+      "currentFocus": "打磨计算器入口、微信式聊天、一键锁回、9.9 元/月和赠送 TA 月卡的商业演示闭环。",
+      "blockers": [
+        "公司名称和经营范围尚未完成变更",
+        "yifan1.com 为个人名义购买，主体一致性待确认",
+        "软著名称、备案材料和协议文档待推进"
+      ],
+      "subflows": [
+        {
+          "name": "上架合规子工作流",
+          "href": "app-listing-dashboard.html"
+        }
+      ],
+      "scores": {
+        "explicitPain": 6,
+        "hiddenNeed": 9,
+        "frequency": 7,
+        "audienceClarity": 7,
+        "solutionEffect": 7,
+        "paymentPotential": 8,
+        "acquisitionReach": 6,
+        "mvpDifficulty": 6,
+        "complianceSafety": 4,
+        "founderFit": 8
+      },
+      "tracks": [
+        "mvp",
+        "compliance"
+      ],
+      "nextSmallAction": "继续 MVP 打磨，推进公司主体、软著、域名和协议。",
+      "moneyDistance": "较近",
+      "requiresUserAction": true,
+      "claudeCanAdvance": true
+    },
+    {
+      "id": "golden-idea",
+      "name": "金点子",
+      "category": "方法论产品",
+      "stage": "产品化轨",
+      "priority": "P1",
+      "priorityDisplay": "P1/P2",
+      "summary": "从创意到 APP 变现的流程、模板、评分器和 AI 工作流系统。",
+      "founderFit": "来自用户正在同时推进多个 APP 项目的真实需求。",
+      "currentFocus": "从冻品开单助手、私密聊天助手、AI 女友、天缘的真实推进过程里长出来。",
+      "blockers": [
+        "需继续用内部真实项目验证流程",
+        "不应脱离真实项目空转"
+      ],
+      "subflows": [],
+      "scores": {
+        "explicitPain": 7,
+        "hiddenNeed": 5,
+        "frequency": 7,
+        "audienceClarity": 6,
+        "solutionEffect": 8,
+        "paymentPotential": 7,
+        "acquisitionReach": 6,
+        "mvpDifficulty": 7,
+        "complianceSafety": 8,
+        "founderFit": 10
+      },
+      "tracks": [
+        "productization"
+      ],
+      "nextSmallAction": "从真实项目沉淀模板和总控台，不急于独立开发。",
+      "moneyDistance": "中期",
+      "requiresUserAction": false,
+      "claudeCanAdvance": true
+    },
+    {
+      "id": "tianyuan",
+      "name": "天缘",
+      "category": "本地交友征婚平台",
+      "stage": "机会轨",
+      "priority": "P2",
+      "summary": "天长市本地交友征婚 App/小程序，偏同城严肃婚恋和中年再连接。",
+      "founderFit": "来自用户对本地中年交友、婚恋、孤独和寻找知己需求的理解。",
+      "currentFocus": "继续补本地交友征婚的目标用户、真实性机制、线下获客和合规风险。",
+      "blockers": [
+        "真实性和风控机制待设计",
+        "合规和内容审核风险较高"
+      ],
+      "subflows": [],
+      "scores": {
+        "explicitPain": 6,
+        "hiddenNeed": 9,
+        "frequency": 6,
+        "audienceClarity": 8,
+        "solutionEffect": 6,
+        "paymentPotential": 7,
+        "acquisitionReach": 7,
+        "mvpDifficulty": 4,
+        "complianceSafety": 4,
+        "founderFit": 8
+      },
+      "tracks": [
+        "opportunity"
+      ],
+      "nextSmallAction": "补本地用户画像、真实性机制、线下获客路径。",
+      "moneyDistance": "观察",
+      "requiresUserAction": false,
+      "claudeCanAdvance": true
+    }
+  ]
+}

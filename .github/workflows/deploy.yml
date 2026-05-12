@@ -18,66 +18,111 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: |
-          cd backend
-          npm install
-
-      - name: Create environment file
-        run: |
-          cd backend
-          cat > .env << EOF
-          PORT=3001
-          NODE_ENV=production
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          UPLOAD_DIR=/home/admin/private-chat/uploads
-          RDS_HOST=${{ secrets.RDS_HOST }}
-          RDS_PORT=3306
-          RDS_DB=${{ secrets.RDS_DB }}
-          RDS_USER=${{ secrets.RDS_USER }}
-          RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}
-          EOF
-
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          SERVER_PORT: ${{ secrets.SERVER_PORT }}
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          host: ${{ env.SERVER_HOST }}
-          port: ${{ env.SERVER_PORT }}
-          username: ${{ env.SERVER_USER }}
-          password: ${{ env.SERVER_PASSWORD }}
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test
+
+      - name: Build Android APK
+        env:
+          NODE_ENV: production
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Prepare deploy artifacts
+        run: |
+          mkdir -p deploy-artifacts/site/download
+          cp android/app/build/outputs/apk/release/app-release.apk deploy-artifacts/site/download/latest.apk
+          cp app-version.json deploy-artifacts/site/app-version.json
+          cp docs/privatechat-download-page.html deploy-artifacts/site/index.html
+
+      - name: Upload deploy bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          source: "backend,deploy-artifacts/site"
+          target: "/tmp/private-chat-deploy-${{ github.sha }}"
+          rm: true
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
           debug: true
+          script_stop: true
           script: |
-            cd /home/admin/private-chat
+            set -e
 
-            # 创建目录
-            mkdir -p /home/admin/private-chat
-            mkdir -p /home/admin/private-chat/uploads
+            DEPLOY_DIR="/tmp/private-chat-deploy-${{ github.sha }}"
+            APP_DIR="/opt/privatechat-backend"
+            WEB_ROOT="/www/wwwroot/privatechat.yifan1.com"
 
-            # 停止旧服务
+            mkdir -p "$APP_DIR/data" "$APP_DIR/uploads" "$WEB_ROOT/download"
+
+            EXISTING_ADMIN_KEY=""
+            if [ -f "$APP_DIR/.env" ]; then
+              EXISTING_ADMIN_KEY="$(sed -n 's/^ADMIN_MEMBERSHIP_KEY=//p' "$APP_DIR/.env" | tail -n 1 || true)"
+            fi
+            SECRET_ADMIN_KEY='${{ secrets.ADMIN_MEMBERSHIP_KEY }}'
+            ADMIN_MEMBERSHIP_KEY="${SECRET_ADMIN_KEY:-$EXISTING_ADMIN_KEY}"
+            ADMIN_MEMBERSHIP_KEY="${ADMIN_MEMBERSHIP_KEY:-change-me-admin-key}"
+
+            find "$APP_DIR" -mindepth 1 -maxdepth 1 \
+              ! -name data \
+              ! -name uploads \
+              ! -name node_modules \
+              -exec rm -rf {} +
+
+            cp -a "$DEPLOY_DIR/backend/." "$APP_DIR/"
+            cat > "$APP_DIR/.env" << EOF
+            PORT=3001
+            NODE_ENV=production
+            DB_PATH=$APP_DIR/data/app.db
+            UPLOAD_DIR=$APP_DIR/uploads
+            ADMIN_MEMBERSHIP_KEY=$ADMIN_MEMBERSHIP_KEY
+            EOF
+
+            cd "$APP_DIR"
+            npm install --omit=dev
+
             pkill -f "node.*server.js" || true
             sleep 2
-
-            # 复制新代码
-            cp -r ${{ github.workspace }}/backend/* .
-
-            # 安装依赖
-            npm install
-
-            # 重启后端
             nohup npm start > backend.log 2>&1 &
 
             sleep 3
 
-            # 检查是否启动成功
-            if curl -s http://localhost:3001/health > /dev/null; then
-              echo "PrivateChatApp deployed successfully!"
-            else
-              echo "Deployment failed, check backend.log"
-              cat backend.log
-              exit 1
-            fi
+            curl -fsS http://127.0.0.1:3001/health
+
+            cp "$DEPLOY_DIR/deploy-artifacts/site/app-version.json" "$WEB_ROOT/app-version.json"
+            cp "$DEPLOY_DIR/deploy-artifacts/site/download/latest.apk" "$WEB_ROOT/download/latest.apk"
+            cp "$DEPLOY_DIR/deploy-artifacts/site/index.html" "$WEB_ROOT/index.html"
+            chmod 644 "$WEB_ROOT/app-version.json" "$WEB_ROOT/download/latest.apk" "$WEB_ROOT/index.html"
+
+            rm -rf "$DEPLOY_DIR"
+
+            echo "PrivateChatApp deployed successfully."

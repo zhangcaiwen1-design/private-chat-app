@@ -1,79 +1,78 @@
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+for (const envPath of [
+  path.resolve(__dirname, '../.env'),
+  path.resolve(__dirname, '.env'),
+]) {
+  dotenv.config({ path: envPath });
+}
+
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const path = require('path');
 
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/user');
 const contactsRoutes = require('./routes/contacts');
 const messagesRoutes = require('./routes/messages');
-const cloudRoutes = require('./routes/cloud');
-const uploadRoutes = require('./routes/upload');
+const cloudBackupsRoutes = require('./routes/cloudBackups');
+const ritualsRoutes = require('./routes/rituals');
+const membershipRoutes = require('./routes/membership');
+const adminMembershipRoutes = require('./routes/adminMembership');
+const { initDatabase } = require('./services/db');
 
-const { authMiddleware } = require('./middleware/auth');
-const mysql = require('./services/mysql');
-const storage = require('./services/storage');
-
-const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+async function createApp() {
+  initDatabase();
 
-// Ensure upload directory exists
-storage.ensureDir(storage.UPLOAD_DIR);
+  const app = express();
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(storage.UPLOAD_DIR)));
+  app.use(cors());
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting - 60 requests per minute
-const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  message: { error: '请求过于频繁，请稍后再试' }
-});
-app.use('/api/', limiter);
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: Date.now() });
-});
-
-// Public routes
-app.use('/api/v1/auth', authRoutes);
-
-// Protected routes - require JWT
-app.use('/api/v1/user', authMiddleware, userRoutes);
-app.use('/api/v1/contacts', authMiddleware, contactsRoutes);
-app.use('/api/v1/messages', authMiddleware, messagesRoutes);
-app.use('/api/v1/cloud', authMiddleware, cloudRoutes);
-app.use('/api/v1/upload', authMiddleware, uploadRoutes);
-
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || '服务器内部错误'
+  const limiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    message: { error: '请求过于频繁，请稍后再试' },
   });
-});
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: '接口不存在' });
-});
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: Date.now() });
+  });
 
-// Initialize database and start server
+  app.get('/admin/membership-review', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin', 'membership-review.html'));
+  });
+
+  app.use('/api/v1', limiter);
+  app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/contacts', contactsRoutes);
+  app.use('/api/v1/messages', messagesRoutes);
+  app.use('/api/v1/cloud-backups', cloudBackupsRoutes);
+  app.use('/api/v1/rituals', ritualsRoutes);
+  app.use('/api/v1/membership', membershipRoutes);
+  app.use('/api/v1/admin', adminMembershipRoutes);
+
+  app.use((err, req, res, next) => {
+    console.error('Error:', err);
+    res.status(err.status || 500).json({ error: err.message || '服务器内部错误' });
+  });
+
+  app.use((req, res) => {
+    res.status(404).json({ error: '接口不存在' });
+  });
+
+  return app;
+}
+
 async function start() {
   try {
-    await mysql.initDatabase();
-    console.log('Database initialized');
-
+    const app = await createApp();
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Upload directory: ${storage.UPLOAD_DIR}`);
+      console.log(`Local private chat server running on port ${PORT}`);
+      console.log(`Health check: http://localhost:${PORT}/health`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -81,4 +80,8 @@ async function start() {
   }
 }
 
-start();
+if (require.main === module) {
+  start();
+}
+
+module.exports = { createApp };

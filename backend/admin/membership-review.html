@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>会员审核台</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6f8;
+        --card: #ffffff;
+        --text: #111827;
+        --muted: #6b7280;
+        --line: #e5e7eb;
+        --primary: #16a34a;
+        --primary-soft: #dcfce7;
+        --warn: #d97706;
+        --warn-soft: #fef3c7;
+        --danger: #dc2626;
+        --danger-soft: #fee2e2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 16px 40px;
+      }
+
+      .hero,
+      .toolbar,
+      .stats,
+      .orders {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+      }
+
+      .hero {
+        padding: 20px;
+        margin-bottom: 16px;
+      }
+
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .toolbar {
+        padding: 16px;
+        display: grid;
+        grid-template-columns: minmax(220px, 320px) minmax(180px, 220px) 120px;
+        gap: 12px;
+        align-items: end;
+        margin-bottom: 16px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .field label {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .input,
+      .select,
+      .textarea,
+      .number {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font: inherit;
+        color: var(--text);
+        background: #fff;
+      }
+
+      .textarea {
+        min-height: 76px;
+        resize: vertical;
+      }
+
+      .button {
+        min-height: 44px;
+        border: 0;
+        border-radius: 12px;
+        padding: 0 16px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.18s ease, opacity 0.18s ease;
+      }
+
+      .button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .button-primary {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .button-primary:hover {
+        background: #15803d;
+      }
+
+      .button-secondary {
+        background: #f3f4f6;
+        color: var(--text);
+      }
+
+      .button-approve {
+        background: var(--primary-soft);
+        color: #166534;
+      }
+
+      .button-reject {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .filter {
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--muted);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .filter.active {
+        border-color: var(--primary);
+        background: var(--primary-soft);
+        color: #166534;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .stat {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .stat .label {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+
+      .stat .value {
+        font-size: 26px;
+        font-weight: 800;
+      }
+
+      .orders {
+        padding: 16px;
+      }
+
+      .orders-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .orders-title {
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .orders-subtitle {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .flash {
+        display: none;
+        margin-bottom: 16px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .flash.success {
+        display: block;
+        background: var(--primary-soft);
+        color: #166534;
+      }
+
+      .flash.error {
+        display: block;
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .order-list {
+        display: grid;
+        gap: 14px;
+      }
+
+      .empty {
+        padding: 28px 12px;
+        text-align: center;
+        color: var(--muted);
+        border: 1px dashed var(--line);
+        border-radius: 14px;
+      }
+
+      .order-card {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(220px, 260px) minmax(280px, 360px);
+        gap: 16px;
+      }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .meta-item {
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #f9fafb;
+        border: 1px solid var(--line);
+      }
+
+      .meta-item .k {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .meta-item .v {
+        font-size: 14px;
+        font-weight: 600;
+        word-break: break-all;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .status-pending_review {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+
+      .status-approved {
+        background: var(--primary-soft);
+        color: #166534;
+      }
+
+      .status-rejected {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .proof {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        background: #f9fafb;
+      }
+
+      .proof img {
+        width: 100%;
+        max-height: 240px;
+        object-fit: contain;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+
+      .proof-text {
+        font-size: 13px;
+        color: var(--muted);
+        word-break: break-all;
+      }
+
+      .actions {
+        display: grid;
+        gap: 12px;
+      }
+
+      .action-row {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .action-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      @media (max-width: 960px) {
+        .toolbar,
+        .stats,
+        .order-card,
+        .meta-grid,
+        .action-row,
+        .action-buttons {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <h1>会员审核台</h1>
+        <p>本地查看待审核付款凭证，快速通过或驳回。仅在已配置管理员密钥的本机服务里使用。</p>
+      </section>
+
+      <section class="toolbar">
+        <div class="field">
+          <label for="adminKey">管理员密钥</label>
+          <input id="adminKey" class="input" placeholder="请输入已配置的管理员密钥" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="statusFilterSelect">默认筛选</label>
+          <select id="statusFilterSelect" class="select">
+            <option value="pending_review">待审核</option>
+            <option value="approved">已通过</option>
+            <option value="rejected">已驳回</option>
+            <option value="all">全部</option>
+          </select>
+        </div>
+        <button id="reloadButton" class="button button-primary" type="button">刷新列表</button>
+      </section>
+
+      <section class="stats" id="stats"></section>
+
+      <section class="orders">
+        <div id="flash" class="flash"></div>
+        <div class="filters" id="filters"></div>
+        <div class="orders-header">
+          <div>
+            <div class="orders-title">订单列表</div>
+            <div class="orders-subtitle" id="ordersSubtitle">正在加载</div>
+          </div>
+        </div>
+        <div id="orderList" class="order-list"></div>
+      </section>
+    </main>
+
+    <script>
+      const state = {
+        adminKey: '',
+        filter: 'pending_review',
+        orders: [],
+        busyId: null,
+      };
+
+      const adminKeyInput = document.getElementById('adminKey');
+      const statusFilterSelect = document.getElementById('statusFilterSelect');
+      const reloadButton = document.getElementById('reloadButton');
+      const statsNode = document.getElementById('stats');
+      const filtersNode = document.getElementById('filters');
+      const orderListNode = document.getElementById('orderList');
+      const ordersSubtitleNode = document.getElementById('ordersSubtitle');
+      const flashNode = document.getElementById('flash');
+
+      const filterOptions = [
+        ['pending_review', '待审核'],
+        ['approved', '已通过'],
+        ['rejected', '已驳回'],
+        ['all', '全部'],
+      ];
+
+      function formatTime(value) {
+        if (!value) return '暂无';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '暂无';
+        return date.toLocaleString('zh-CN', { hour12: false });
+      }
+
+      function setFlash(type, text) {
+        flashNode.className = 'flash ' + type;
+        flashNode.textContent = text;
+      }
+
+      function clearFlash() {
+        flashNode.className = 'flash';
+        flashNode.textContent = '';
+      }
+
+      function statusLabel(status) {
+        if (status === 'approved') return '已通过';
+        if (status === 'rejected') return '已驳回';
+        return '待审核';
+      }
+
+      function visibleOrders() {
+        if (state.filter === 'all') return state.orders;
+        return state.orders.filter((item) => item.status === state.filter);
+      }
+
+      function renderStats() {
+        const pending = state.orders.filter((item) => item.status === 'pending_review').length;
+        const approved = state.orders.filter((item) => item.status === 'approved').length;
+        const rejected = state.orders.filter((item) => item.status === 'rejected').length;
+        const totalAmount = state.orders.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+        const items = [
+          ['待审核', pending],
+          ['已通过', approved],
+          ['已驳回', rejected],
+          ['累计金额', '¥' + totalAmount.toFixed(1)],
+        ];
+        statsNode.innerHTML = '';
+        items.forEach(([label, value]) => {
+          const card = document.createElement('div');
+          card.className = 'stat';
+          const labelNode = document.createElement('div');
+          labelNode.className = 'label';
+          labelNode.textContent = label;
+          const valueNode = document.createElement('div');
+          valueNode.className = 'value';
+          valueNode.textContent = String(value);
+          card.append(labelNode, valueNode);
+          statsNode.appendChild(card);
+        });
+      }
+
+      function renderFilters() {
+        filtersNode.innerHTML = '';
+        filterOptions.forEach(([value, label]) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'filter' + (state.filter === value ? ' active' : '');
+          button.textContent = label;
+          button.addEventListener('click', () => {
+            state.filter = value;
+            statusFilterSelect.value = value;
+            renderFilters();
+            renderOrders();
+          });
+          filtersNode.appendChild(button);
+        });
+      }
+
+      function createMetaItem(label, value) {
+        const node = document.createElement('div');
+        node.className = 'meta-item';
+        const k = document.createElement('div');
+        k.className = 'k';
+        k.textContent = label;
+        const v = document.createElement('div');
+        v.className = 'v';
+        v.textContent = value;
+        node.append(k, v);
+        return node;
+      }
+
+      function createOrderCard(order) {
+        const card = document.createElement('article');
+        card.className = 'order-card';
+        card.dataset.orderId = order.id;
+
+        const left = document.createElement('div');
+        const metaGrid = document.createElement('div');
+        metaGrid.className = 'meta-grid';
+        metaGrid.append(
+          createMetaItem('订单ID', order.id),
+          createMetaItem('状态', statusLabel(order.status)),
+          createMetaItem('用户ID', order.user_id),
+          createMetaItem('付款手机号', order.payer_phone || '暂无'),
+          createMetaItem('付款金额', '¥' + Number(order.amount || 0).toFixed(1)),
+          createMetaItem('付款时间', formatTime(order.paid_at)),
+          createMetaItem('提交时间', formatTime(order.created_at)),
+          createMetaItem('审核信息', order.reviewer ? `${order.reviewer} · ${formatTime(order.reviewed_at)}` : '尚未处理'),
+          createMetaItem('用户备注', order.note || '无'),
+          createMetaItem('驳回原因', order.review_note || '无')
+        );
+        left.appendChild(metaGrid);
+
+        const middle = document.createElement('div');
+        const proof = document.createElement('div');
+        proof.className = 'proof';
+        const pill = document.createElement('div');
+        pill.className = 'status-pill status-' + order.status;
+        pill.textContent = statusLabel(order.status);
+        pill.style.marginBottom = '10px';
+        proof.appendChild(pill);
+        if ((order.payment_proof || '').startsWith('data:image')) {
+          const img = document.createElement('img');
+          img.src = order.payment_proof;
+          img.alt = '付款凭证';
+          proof.appendChild(img);
+        } else {
+          const text = document.createElement('div');
+          text.className = 'proof-text';
+          text.textContent = order.payment_proof || '无凭证';
+          proof.appendChild(text);
+        }
+        middle.appendChild(proof);
+
+        const right = document.createElement('div');
+        right.className = 'actions';
+
+        const monthsRow = document.createElement('div');
+        monthsRow.className = 'action-row';
+        const monthsLabel = document.createElement('label');
+        monthsLabel.textContent = '开通月数';
+        monthsLabel.setAttribute('for', 'months-' + order.id);
+        const monthsInput = document.createElement('input');
+        monthsInput.id = 'months-' + order.id;
+        monthsInput.className = 'number';
+        monthsInput.type = 'number';
+        monthsInput.min = '1';
+        monthsInput.value = '1';
+        monthsRow.append(monthsLabel, monthsInput);
+
+        const rejectRow = document.createElement('div');
+        rejectRow.className = 'field';
+        const rejectLabel = document.createElement('label');
+        rejectLabel.textContent = '驳回原因';
+        rejectLabel.setAttribute('for', 'reject-' + order.id);
+        const rejectInput = document.createElement('textarea');
+        rejectInput.id = 'reject-' + order.id;
+        rejectInput.className = 'textarea';
+        rejectInput.placeholder = '例如：付款截图模糊，无法核对';
+        rejectInput.value = order.review_note || '';
+        rejectRow.append(rejectLabel, rejectInput);
+
+        const buttons = document.createElement('div');
+        buttons.className = 'action-buttons';
+        const approveButton = document.createElement('button');
+        approveButton.type = 'button';
+        approveButton.className = 'button button-approve';
+        approveButton.textContent = order.status === 'approved' ? '已通过' : '通过';
+        approveButton.disabled = order.status !== 'pending_review' || state.busyId === order.id;
+        approveButton.addEventListener('click', async () => {
+          await reviewOrder(order.id, 'approve', { months: Number(monthsInput.value) || 1 });
+        });
+        const rejectButton = document.createElement('button');
+        rejectButton.type = 'button';
+        rejectButton.className = 'button button-reject';
+        rejectButton.textContent = order.status === 'rejected' ? '已驳回' : '驳回';
+        rejectButton.disabled = order.status !== 'pending_review' || state.busyId === order.id;
+        rejectButton.addEventListener('click', async () => {
+          await reviewOrder(order.id, 'reject', { reason: rejectInput.value.trim() || '付款信息未通过审核' });
+        });
+        buttons.append(approveButton, rejectButton);
+
+        right.append(monthsRow, rejectRow, buttons);
+        card.append(left, middle, right);
+        return card;
+      }
+
+      function renderOrders() {
+        const items = visibleOrders();
+        ordersSubtitleNode.textContent = `当前显示 ${items.length} 笔，已加载总计 ${state.orders.length} 笔`;
+        orderListNode.innerHTML = '';
+        if (!items.length) {
+          const empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = '当前筛选下没有订单';
+          orderListNode.appendChild(empty);
+          return;
+        }
+        items.forEach((order) => {
+          orderListNode.appendChild(createOrderCard(order));
+        });
+      }
+
+      async function fetchOrders(options = {}) {
+        if (!options.preserveFlash) {
+          clearFlash();
+        }
+        state.adminKey = adminKeyInput.value.trim();
+        state.filter = statusFilterSelect.value;
+        reloadButton.disabled = true;
+        try {
+          const response = await fetch('/api/v1/admin/membership-orders?status=all', {
+            headers: {
+              'x-admin-key': state.adminKey,
+            },
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(data.error || '无法获取订单列表');
+          }
+          state.orders = data.orders || [];
+          renderStats();
+          renderFilters();
+          renderOrders();
+        } catch (error) {
+          state.orders = [];
+          renderStats();
+          renderFilters();
+          renderOrders();
+          setFlash('error', error.message || '加载失败');
+        } finally {
+          reloadButton.disabled = false;
+        }
+      }
+
+      async function reviewOrder(orderId, action, payload) {
+        clearFlash();
+        state.busyId = orderId;
+        renderOrders();
+        try {
+          const response = await fetch(`/api/v1/admin/membership-orders/${orderId}/${action}`, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-admin-key': adminKeyInput.value.trim(),
+            },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(data.error || '操作失败');
+          }
+          setFlash('success', action === 'approve' ? '会员已通过审核并开通。' : '会员申请已驳回。');
+          await fetchOrders({ preserveFlash: true });
+        } catch (error) {
+          setFlash('error', error.message || '操作失败');
+        } finally {
+          state.busyId = null;
+          renderOrders();
+        }
+      }
+
+      reloadButton.addEventListener('click', fetchOrders);
+      statusFilterSelect.addEventListener('change', () => {
+        state.filter = statusFilterSelect.value;
+        renderFilters();
+        renderOrders();
+      });
+
+      renderStats();
+      renderFilters();
+      fetchOrders();
+    </script>
+  </body>
+</html>

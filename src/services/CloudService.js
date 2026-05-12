@@ -1,50 +1,67 @@
 import * as ApiService from './ApiService';
+import { getMembershipTier, refreshMembershipStatus } from './MembershipService';
 
-// Upload message to cloud backup
+const {
+  canUseCloudBackup,
+  shouldAutoUploadMessage,
+} = require('./cloudSyncPolicy');
+
+async function ensureCloudMembership() {
+  const snapshot = await refreshMembershipStatus();
+  if (!canUseCloudBackup(snapshot.tier)) {
+    throw new Error('付费会员才可使用云保存和下载功能');
+  }
+  return snapshot;
+}
+
 export async function uploadToCloud(message) {
-  try {
-    const result = await ApiService.uploadToCloud(
-      message.contact_id,
-      message.type,
-      message.content,
-      message.cloud_url || null
-    );
-    return result;
-  } catch (error) {
-    console.error('Upload to cloud failed:', error);
-    throw error;
-  }
+  const result = await ApiService.uploadToCloud(
+    message.contact_id,
+    message.id || null,
+    message.type,
+    message.content,
+    message.cloud_url || null,
+    message.duration || null,
+    message.source || 'chat_message',
+  );
+  return result.backup;
 }
 
-// Get all cloud backups
-export async function getCloudBackups(type = 'all') {
-  try {
-    const result = await ApiService.getCloudMessages(type);
-    return result.messages || [];
-  } catch (error) {
-    console.error('Get cloud backups failed:', error);
-    throw error;
+export async function syncMessageToCloud(message) {
+  const localTier = await getMembershipTier();
+  const localAllowsUpload = shouldAutoUploadMessage(localTier, message);
+  const snapshot = await refreshMembershipStatus();
+
+  if (!localAllowsUpload && !shouldAutoUploadMessage(snapshot.tier, message)) {
+    return null;
   }
+
+  if (!canUseCloudBackup(snapshot.tier)) {
+    throw new Error('付费会员才可使用云保存和下载功能');
+  }
+
+  return uploadToCloud(message);
 }
 
-// Download/view a cloud message
+export async function getCloudBackups() {
+  await ensureCloudMembership();
+  const result = await ApiService.getCloudMessages();
+  return result.messages || [];
+}
+
 export async function downloadFromCloud(cloudId) {
-  try {
-    const result = await ApiService.getCloudFileUrl(cloudId);
-    return result;
-  } catch (error) {
-    console.error('Download from cloud failed:', error);
-    throw error;
-  }
+  await ensureCloudMembership();
+  return ApiService.getCloudFileUrl(cloudId);
 }
 
-// Delete from cloud
+export async function restoreFromCloud(cloudId) {
+  await ensureCloudMembership();
+  const result = await ApiService.restoreCloudBackup(cloudId);
+  return result.message;
+}
+
 export async function deleteFromCloud(cloudId) {
-  try {
-    await ApiService.deleteCloudBackup(cloudId);
-    return true;
-  } catch (error) {
-    console.error('Delete from cloud failed:', error);
-    throw error;
-  }
+  await ensureCloudMembership();
+  await ApiService.deleteCloudBackup(cloudId);
+  return true;
 }

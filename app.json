@@ -2,16 +2,33 @@
   "expo": {
     "name": "计算器",
     "slug": "calculator",
-    "version": "1.0.0",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "calculator",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "extra": {
+      "apiBaseUrl": "https://privatechat.yifan1.com/api/v1",
+      "adminEntryCode": "",
+      "appUnlockPin": "",
+      "membershipPaymentQrUrl": "",
+      "membershipPaymentNote": "付款备注请填写你的用户ID，提交后等待人工开通。",
+      "appDownloadUrl": "https://privatechat.yifan1.com/download/latest.apk",
+      "appVersionConfigUrl": "https://privatechat.yifan1.com/app-version.json",
+      "router": {},
+      "eas": {
+        "projectId": "7fc4defb-8388-484a-bc2f-d70bf6e555d5"
+      }
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.privatechatapp.calculator",
+      "buildNumber": "1.0.6"
     },
     "android": {
+      "package": "com.privatechatapp.calculator",
+      "versionCode": 7,
       "adaptiveIcon": {
         "backgroundColor": "#1C1C1E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -43,6 +60,7 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "owner": "zhangcaiwen1"
   }
 }
