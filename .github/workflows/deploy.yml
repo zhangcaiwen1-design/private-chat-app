@@ -110,11 +110,15 @@ jobs:
             cd "$APP_DIR"
             npm install --omit=dev
 
-            ps -eo pid=,comm=,args= \
-              | awk '$2 == "node" && index($0, "/opt/privatechat-backend/server.js") {print $1}' \
-              | xargs -r kill
+            if command -v fuser >/dev/null 2>&1; then
+              fuser -k 3001/tcp || true
+            else
+              ps -eo pid=,comm=,args= \
+                | awk '$2 == "node" && (index($0, "/opt/privatechat-backend/server.js") || index($0, "node server.js")) {print $1}' \
+                | xargs -r kill
+            fi
             sleep 2
-            nohup npm start > backend.log 2>&1 &
+            nohup node "$APP_DIR/server.js" > backend.log 2>&1 &
 
             sleep 3
 
