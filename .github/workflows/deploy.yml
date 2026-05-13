@@ -137,7 +137,7 @@ jobs:
                 | xargs -r kill
             fi
             sleep 5
-            nohup node "$APP_DIR/server.js" > backend.log 2>&1 &
+            nohup npm start > backend.log 2>&1 &
 
             for i in $(seq 1 30); do
               if curl -fsS http://127.0.0.1:3001/health; then
