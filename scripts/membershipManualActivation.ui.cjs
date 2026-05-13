@@ -37,7 +37,8 @@ async function ensurePendingOrder(headers) {
       'x-user-phone': headers['x-user-phone'],
     },
     body: JSON.stringify({
-      amount: 9.9,
+      amount: 19.9,
+      plan_code: 'first_month_19_9',
       payer_phone: headers['x-user-phone'],
       paid_at: Date.now(),
       payment_proof: 'data:image/png;base64,ZmFrZQ==',
@@ -54,7 +55,7 @@ async function ensurePendingOrder(headers) {
 async function openMembershipCenter(page) {
   await page.getByText('通讯录', { exact: true }).click();
   await page.getByText('会员中心', { exact: true }).click();
-  await page.getByText('9.9元/月', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByText('首月体验', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
 }
 
 async function main() {

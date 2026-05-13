@@ -1,7 +1,7 @@
 {
   "enabled": true,
-  "latestVersion": "1.0.8",
-  "minimumSupportedVersion": "1.0.8",
+  "latestVersion": "1.0.11",
+  "minimumSupportedVersion": "1.0.10",
   "downloadUrl": "https://privatechat.yifan1.com/download/latest.apk",
   "title": "请更新到新版本",
   "message": "当前版本已停止服务，请下载安装最新版本后再继续使用。"

@@ -19,7 +19,7 @@ async function unlock(page) {
 async function openMembershipCenter(page) {
   await page.getByText('通讯录', { exact: true }).click();
   await page.getByText('会员中心', { exact: true }).click();
-  await page.getByText('9.9元/月', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByText('首月体验', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
 }
 
 async function main() {

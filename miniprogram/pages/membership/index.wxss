@@ -1,0 +1,140 @@
+.input {
+  min-height: 92rpx;
+}
+
+.membership-page {
+  gap: 20rpx;
+}
+
+.status-panel,
+.info-panel {
+  background: #f9fafb;
+}
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14rpx;
+}
+
+.plan-card {
+  border: 1rpx solid #e5e7eb;
+  border-radius: 14rpx;
+  padding: 16rpx 14rpx;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.plan-card.selected {
+  border-color: #07c160;
+  background: #f2fff7;
+}
+
+.plan-card.featured {
+  box-shadow: 0 0 0 1rpx rgba(7, 193, 96, 0.15);
+}
+
+.plan-head {
+  align-items: flex-start;
+  gap: 10rpx;
+}
+
+.plan-name {
+  color: #111111;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.plan-badge {
+  color: #07c160;
+  font-size: 20rpx;
+  font-weight: 700;
+  background: #e8f8ef;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+}
+
+.plan-price-row {
+  display: flex;
+  align-items: flex-end;
+}
+
+.plan-currency {
+  color: #111111;
+  font-size: 24rpx;
+  font-weight: 700;
+  margin-bottom: 4rpx;
+}
+
+.plan-price {
+  color: #111111;
+  font-size: 42rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.plan-cycle {
+  color: #6b6b6b;
+  font-size: 22rpx;
+  margin-left: 6rpx;
+  margin-bottom: 4rpx;
+}
+
+.plan-summary,
+.plan-extra {
+  color: #6b6b6b;
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.section-title {
+  color: #111111;
+  font-size: 30rpx;
+  font-weight: 700;
+  margin-bottom: 10rpx;
+}
+
+.purchase-panel {
+  background: #f9fafb;
+  border: 1rpx solid #eef2f7;
+}
+
+.purchase-row {
+  min-height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1rpx solid #eaeaea;
+  color: #4f4f4f;
+  font-size: 26rpx;
+}
+
+.buy-button {
+  min-height: 88rpx;
+  box-sizing: border-box;
+}
+
+.buy-button.disabled {
+  opacity: 0.65;
+}
+
+.gift-row {
+  min-height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1rpx solid #eaeaea;
+}
+
+.gift-title {
+  color: #4f4f4f;
+  font-size: 26rpx;
+}
+
+.gift-value {
+  color: #07c160;
+  font-size: 26rpx;
+  font-weight: 700;
+}

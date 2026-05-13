@@ -1,0 +1,8 @@
+<view class="screen">
+  <view class="panel stack">
+    <view class="chip">{{title}}</view>
+    <view class="stack">
+      <view class="paragraph" wx:for="{{sections}}" wx:key="*this">{{item}}</view>
+    </view>
+  </view>
+</view>

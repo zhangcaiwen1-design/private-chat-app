@@ -518,6 +518,7 @@
           createMetaItem('订单ID', order.id),
           createMetaItem('状态', statusLabel(order.status)),
           createMetaItem('用户ID', order.user_id),
+          createMetaItem('套餐', `${order.plan_name || order.plan_code || '未知套餐'} · ${order.plan_total_days || order.plan_days || 30}天`),
           createMetaItem('付款手机号', order.payer_phone || '暂无'),
           createMetaItem('付款金额', '¥' + Number(order.amount || 0).toFixed(1)),
           createMetaItem('付款时间', formatTime(order.paid_at)),
@@ -552,18 +553,18 @@
         const right = document.createElement('div');
         right.className = 'actions';
 
-        const monthsRow = document.createElement('div');
-        monthsRow.className = 'action-row';
-        const monthsLabel = document.createElement('label');
-        monthsLabel.textContent = '开通月数';
-        monthsLabel.setAttribute('for', 'months-' + order.id);
-        const monthsInput = document.createElement('input');
-        monthsInput.id = 'months-' + order.id;
-        monthsInput.className = 'number';
-        monthsInput.type = 'number';
-        monthsInput.min = '1';
-        monthsInput.value = '1';
-        monthsRow.append(monthsLabel, monthsInput);
+        const daysRow = document.createElement('div');
+        daysRow.className = 'action-row';
+        const daysLabel = document.createElement('label');
+        daysLabel.textContent = '开通天数';
+        daysLabel.setAttribute('for', 'days-' + order.id);
+        const daysInput = document.createElement('input');
+        daysInput.id = 'days-' + order.id;
+        daysInput.className = 'number';
+        daysInput.type = 'number';
+        daysInput.min = '1';
+        daysInput.value = String(order.plan_total_days || order.plan_days || 30);
+        daysRow.append(daysLabel, daysInput);
 
         const rejectRow = document.createElement('div');
         rejectRow.className = 'field';
@@ -585,7 +586,7 @@
         approveButton.textContent = order.status === 'approved' ? '已通过' : '通过';
         approveButton.disabled = order.status !== 'pending_review' || state.busyId === order.id;
         approveButton.addEventListener('click', async () => {
-          await reviewOrder(order.id, 'approve', { months: Number(monthsInput.value) || 1 });
+          await reviewOrder(order.id, 'approve', { days: Number(daysInput.value) || Number(order.plan_total_days || order.plan_days || 30) });
         });
         const rejectButton = document.createElement('button');
         rejectButton.type = 'button';
@@ -597,7 +598,7 @@
         });
         buttons.append(approveButton, rejectButton);
 
-        right.append(monthsRow, rejectRow, buttons);
+        right.append(daysRow, rejectRow, buttons);
         card.append(left, middle, right);
         return card;
       }

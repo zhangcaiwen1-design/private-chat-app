@@ -1,0 +1,104 @@
+<view class="screen">
+  <view class="panel stack membership-page">
+    <view class="row">
+      <view>
+        <view class="chip">会员中心</view>
+        <view class="title" style="font-size:40rpx;margin-top:14rpx;">
+          {{selectedPlan ? '¥' + selectedPlan.amount + ' / ' + selectedPlan.days + '天' : '会员套餐'}}
+        </view>
+        <view class="subtitle">{{selectedPlan ? selectedPlan.summary : '选择一个适合自己的会员套餐。'}}</view>
+      </view>
+      <button class="btn secondary" size="mini" bindtap="logout">退出</button>
+    </view>
+
+    <view wx:if="{{loading}}" class="empty">正在加载会员状态…</view>
+
+    <view wx:elif="{{status}}">
+      <view class="panel status-panel">
+        <view class="row">
+          <text>状态</text>
+          <text class="chip">{{status.status}} · {{status.tier}}</text>
+        </view>
+        <view class="divider"></view>
+        <view class="row">
+          <text>当前套餐</text>
+          <text>{{statusPlan}}</text>
+        </view>
+        <view class="row" wx:if="{{expireText}}">
+          <text>到期</text>
+          <text>{{expireText}}</text>
+        </view>
+      </view>
+
+      <view class="plan-grid">
+        <view
+          wx:for="{{plans}}"
+          wx:key="code"
+          class="plan-card {{selectedPlanCode === item.code ? 'selected' : ''}} {{item.featured ? 'featured' : ''}}"
+          data-code="{{item.code}}"
+          bindtap="selectPlan"
+        >
+          <view class="row plan-head">
+            <text class="plan-name">{{item.name}}</text>
+            <text class="plan-badge" wx:if="{{item.badge}}">{{item.badge}}</text>
+          </view>
+          <view class="plan-price-row">
+            <text class="plan-currency">¥</text>
+            <text class="plan-price">{{item.amount}}</text>
+            <text class="plan-cycle">/{{item.days}}天</text>
+          </view>
+          <text class="plan-summary">{{item.summary}}</text>
+          <text class="plan-extra">{{item.extraText}}</text>
+        </view>
+      </view>
+
+      <button class="btn" bindtap="goChat" wx:if="{{isPaidActive || allowChatBypass}}">进入聊天</button>
+    </view>
+
+    <view wx:if="{{isInactive}}" class="stack">
+      <view class="panel purchase-panel">
+        <view class="section-title">微信支付开通</view>
+        <view class="subtitle" wx:if="{{!isPaymentPending}}">选择套餐后直接唤起微信虚拟支付，支付成功会自动开通会员。</view>
+        <view class="subtitle" wx:else>上一笔订单还未完成支付，可重新选择套餐再次购买。</view>
+        <view class="purchase-row">
+          <text>当前选择</text>
+          <text>{{selectedPlan ? selectedPlan.name : '会员套餐'}}</text>
+        </view>
+        <view class="purchase-row">
+          <text>支付金额</text>
+          <text>¥{{selectedPlan ? selectedPlan.amount : ''}}</text>
+        </view>
+        <view class="purchase-row">
+          <text>开通时长</text>
+          <text>{{selectedPlan ? selectedPlan.totalDays : ''}}天</text>
+        </view>
+      </view>
+
+      <view class="btn buy-button {{submitting ? 'disabled' : ''}}" bindtap="buySelectedPlan">
+        {{buyButtonText}}
+      </view>
+      <button class="btn secondary" bindtap="openLock">返回计算器</button>
+      <button class="btn secondary" bindtap="refresh">刷新状态</button>
+    </view>
+
+    <view class="panel info-panel">
+      <view class="section-title">赠送会员</view>
+      <view class="gift-row">
+        <text class="gift-title">新用户体验</text>
+        <text class="gift-value">3天</text>
+      </view>
+      <view class="gift-row">
+        <text class="gift-title">首购加赠</text>
+        <text class="gift-value">7天</text>
+      </view>
+      <view class="gift-row">
+        <text class="gift-title">邀请好友</text>
+        <text class="gift-value">双方各3天</text>
+      </view>
+    </view>
+
+    <view class="subtitle tiny">协议：<text style="color:#b86b12;" bindtap="openAgreement" data-type="privacy">隐私政策</text> · <text style="color:#b86b12;" bindtap="openAgreement" data-type="terms">用户协议</text> · <text style="color:#b86b12;" bindtap="openAgreement" data-type="membership">会员服务协议</text></view>
+
+    <text class="muted" wx:if="{{error}}">{{error}}</text>
+  </view>
+</view>

@@ -152,17 +152,17 @@ export default function CloudRecords({ onBack, onLock, onRestoreToLocal, onOpenM
       </View>
       <View style={styles.tierCard}>
         <Text style={styles.tierLabel}>云端同步状态</Text>
-        <Text style={styles.tierValue}>{membership.tier === 'paid' && membership.status === 'active' ? '云端同步已开启' : membership.status === 'pending_review' ? '会员申请待审核' : '仅保留本地记录'}</Text>
+        <Text style={styles.tierValue}>{membership.tier === 'paid' && membership.status === 'active' ? '云端同步已开启' : membership.status === 'pending_payment' ? '等待支付完成' : '仅保留本地记录'}</Text>
         <Text style={styles.tierHint}>
           {membership.tier === 'paid' && membership.status === 'active'
             ? '新消息会自动保存到云端，可随时恢复到本地。'
-            : membership.status === 'pending_review'
-              ? '你的付款凭证已提交，我们审核通过后会自动开启云同步。'
+            : membership.status === 'pending_payment'
+              ? '请在微信小程序完成支付，支付成功后云同步会自动开启。'
               : '当前设备仅保留本地私密记录，开通会员后可自动同步到云端。'}
         </Text>
         {membership.tier !== 'paid' || membership.status !== 'active' ? (
           <TouchableOpacity style={styles.upgradeButton} onPress={onOpenMembership}>
-            <Text style={styles.upgradeButtonText}>{membership.status === 'pending_review' ? '查看会员申请' : '开通会员'}</Text>
+            <Text style={styles.upgradeButtonText}>{membership.status === 'pending_payment' ? '刷新支付状态' : '开通会员'}</Text>
           </TouchableOpacity>
         ) : null}
       </View>

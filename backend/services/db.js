@@ -2,6 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
+const {
+  DEFAULT_MEMBERSHIP_PLAN_CODE,
+  getMembershipPlanByCode,
+  getMembershipPlans,
+  getPlanBonusDays,
+  normalizePlanCode,
+  resolveMembershipPlan,
+} = require('./membershipPlans');
 
 let db;
 
@@ -500,11 +508,29 @@ function initDatabase() {
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS membership_purchase_orders (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      amount REAL NOT NULL,
+      plan_code TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending_payment', 'paid', 'failed', 'closed')),
+      provider TEXT NOT NULL,
+      provider_order_id TEXT NOT NULL UNIQUE,
+      provider_transaction_id TEXT,
+      payment_payload TEXT,
+      paid_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_memberships_user_expire
       ON memberships(user_id, expire_at DESC);
 
     CREATE INDEX IF NOT EXISTS idx_membership_orders_user_created
       ON membership_orders(user_id, created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_membership_purchase_orders_user_created
+      ON membership_purchase_orders(user_id, created_at DESC);
   `);
 
   ensureSyncReadySchema(database);
@@ -1140,10 +1166,16 @@ function deleteCloudBackup(backupId, ownerUserId = 'local-user') {
 }
 
 function normalizeMembership(row) {
+  const plan = row ? getMembershipPlanByCode(row.plan_code) : null;
   return row ? {
     id: row.id,
     user_id: row.user_id,
     plan_code: row.plan_code,
+    plan_name: plan?.name || row.plan_code,
+    plan_amount: plan?.amount || null,
+    plan_days: plan?.days || null,
+    plan_bonus_days: plan?.bonusDays || 0,
+    plan_total_days: plan?.totalDays || null,
     status: row.status,
     start_at: row.start_at,
     expire_at: row.expire_at,
@@ -1153,11 +1185,17 @@ function normalizeMembership(row) {
 }
 
 function normalizeMembershipOrder(row) {
+  const plan = row ? getMembershipPlanByCode(row.plan_code) : null;
   return row ? {
     id: row.id,
     user_id: row.user_id,
     amount: row.amount,
     plan_code: row.plan_code,
+    plan_name: plan?.name || row.plan_code,
+    plan_amount: plan?.amount || row.amount,
+    plan_days: plan?.days || null,
+    plan_bonus_days: plan?.bonusDays || 0,
+    plan_total_days: plan?.totalDays || null,
     status: row.status,
     payer_phone: row.payer_phone,
     paid_at: row.paid_at,
@@ -1171,51 +1209,157 @@ function normalizeMembershipOrder(row) {
   } : null;
 }
 
+function normalizeMembershipPurchaseOrder(row) {
+  const plan = row ? getMembershipPlanByCode(row.plan_code) : null;
+  return row ? {
+    id: row.id,
+    user_id: row.user_id,
+    amount: row.amount,
+    plan_code: row.plan_code,
+    plan_name: plan?.name || row.plan_code,
+    plan_amount: plan?.amount || row.amount,
+    plan_days: plan?.days || null,
+    plan_bonus_days: plan?.bonusDays || 0,
+    plan_total_days: plan?.totalDays || null,
+    status: row.status,
+    provider: row.provider,
+    provider_order_id: row.provider_order_id,
+    provider_transaction_id: row.provider_transaction_id,
+    payment_payload: row.payment_payload ? JSON.parse(row.payment_payload) : null,
+    paid_at: row.paid_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  } : null;
+}
+
+function buildMembershipSnapshot(base) {
+  return Object.assign({}, base, {
+    available_plans: getMembershipPlans(),
+    gift_rules: [
+      { title: '新用户赠送', detail: '注册后可享 3 天体验期' },
+      { title: '首购赠送', detail: '首月体验套餐首购额外赠送 7 天' },
+      { title: '邀请赠送', detail: '邀请好友后双方各送 3 天，后续接入邀请记录' },
+    ],
+  });
+}
+
+function hasPriorMembershipHistory(database, userId) {
+  const membershipCount = database
+    .prepare('SELECT COUNT(*) AS count FROM memberships WHERE user_id = ?')
+    .get(userId).count;
+  if (membershipCount > 0) {
+    return true;
+  }
+  const approvedOrderCount = database
+    .prepare("SELECT COUNT(*) AS count FROM membership_orders WHERE user_id = ? AND status = 'approved'")
+    .get(userId).count;
+  if (approvedOrderCount > 0) {
+    return true;
+  }
+  const paidPurchaseCount = database
+    .prepare("SELECT COUNT(*) AS count FROM membership_purchase_orders WHERE user_id = ? AND status = 'paid'")
+    .get(userId).count;
+  return paidPurchaseCount > 0;
+}
+
 function getMembershipSnapshot(userId = 'local-user') {
   const database = openDb();
   const now = Date.now();
   const membership = normalizeMembership(
     database.prepare('SELECT * FROM memberships WHERE user_id = ? ORDER BY expire_at DESC LIMIT 1').get(userId)
   );
-  const pendingOrder = normalizeMembershipOrder(
-    database.prepare("SELECT * FROM membership_orders WHERE user_id = ? AND status = 'pending_review' ORDER BY created_at DESC LIMIT 1").get(userId)
+  const pendingPurchaseOrder = normalizeMembershipPurchaseOrder(
+    database.prepare("SELECT * FROM membership_purchase_orders WHERE user_id = ? AND status = 'pending_payment' ORDER BY created_at DESC LIMIT 1").get(userId)
   );
 
   if (membership && membership.status === 'active' && membership.expire_at > now) {
-    return {
+    return buildMembershipSnapshot({
       tier: 'paid',
       status: 'active',
       plan_code: membership.plan_code,
+      plan_name: membership.plan_name,
       expire_at: membership.expire_at,
       start_at: membership.start_at,
-      pending_order: pendingOrder,
-    };
+      pending_order: null,
+      pending_purchase_order: pendingPurchaseOrder,
+    });
   }
 
-  if (pendingOrder) {
-    return {
+  if (pendingPurchaseOrder) {
+    return buildMembershipSnapshot({
       tier: 'free',
-      status: 'pending_review',
-      plan_code: pendingOrder.plan_code,
+      status: 'pending_payment',
+      plan_code: pendingPurchaseOrder.plan_code,
+      plan_name: pendingPurchaseOrder.plan_name,
       expire_at: null,
       start_at: null,
-      pending_order: pendingOrder,
-    };
+      pending_order: null,
+      pending_purchase_order: pendingPurchaseOrder,
+    });
   }
 
-  return {
+  return buildMembershipSnapshot({
     tier: 'free',
     status: membership && membership.expire_at <= now ? 'expired' : 'inactive',
-    plan_code: membership?.plan_code || 'monthly_9_9',
+    plan_code: membership?.plan_code || DEFAULT_MEMBERSHIP_PLAN_CODE,
+    plan_name: membership?.plan_name || resolveMembershipPlan(DEFAULT_MEMBERSHIP_PLAN_CODE)?.name,
     expire_at: membership?.expire_at || null,
     start_at: membership?.start_at || null,
     pending_order: null,
-  };
+    pending_purchase_order: null,
+  });
 }
 
-function createMembershipManualOrder({ userId, amount, payerPhone, paidAt, paymentProof, note = '' }) {
+function createProviderOrderId() {
+  return `m${Date.now().toString(36)}${uuidv4().replace(/-/g, '').slice(0, 10)}`;
+}
+
+function grantMembershipForPlan(database, { userId, planCode, overrideDays = null }) {
+  const now = Date.now();
+  const plan = getMembershipPlanByCode(planCode) || resolveMembershipPlan(DEFAULT_MEMBERSHIP_PLAN_CODE);
+  const priorMembership = hasPriorMembershipHistory(database, userId);
+  const bonusDays = getPlanBonusDays(planCode, priorMembership);
+  const defaultDays = Number(plan?.days || 30) + bonusDays;
+  const grantDays = Math.max(1, Number(overrideDays) || defaultDays);
+  const activeMembership = database
+    .prepare("SELECT * FROM memberships WHERE user_id = ? AND status = 'active' ORDER BY expire_at DESC LIMIT 1")
+    .get(userId);
+  const startAt = activeMembership && activeMembership.expire_at > now ? activeMembership.expire_at : now;
+  const expireAt = startAt + grantDays * 24 * 60 * 60 * 1000;
+
+  const membership = {
+    id: activeMembership?.id || uuidv4(),
+    user_id: userId,
+    plan_code: plan?.code || DEFAULT_MEMBERSHIP_PLAN_CODE,
+    status: 'active',
+    start_at: activeMembership?.start_at || now,
+    expire_at: expireAt,
+    created_at: activeMembership?.created_at || now,
+    updated_at: now,
+  };
+
+  database.prepare(`
+    INSERT INTO memberships (id, user_id, plan_code, status, start_at, expire_at, created_at, updated_at)
+    VALUES (@id, @user_id, @plan_code, @status, @start_at, @expire_at, @created_at, @updated_at)
+    ON CONFLICT(id) DO UPDATE SET
+      plan_code = excluded.plan_code,
+      status = excluded.status,
+      start_at = excluded.start_at,
+      expire_at = excluded.expire_at,
+      updated_at = excluded.updated_at
+  `).run(membership);
+
+  return normalizeMembership(database.prepare('SELECT * FROM memberships WHERE id = ?').get(membership.id));
+}
+
+function createMembershipManualOrder({ userId, amount, planCode, payerPhone, paidAt, paymentProof, note = '' }) {
   const database = openDb();
   const now = Date.now();
+  const normalizedPlanCode = normalizePlanCode(planCode);
+  const plan = getMembershipPlanByCode(normalizedPlanCode);
+  if (!plan) {
+    throw new Error('会员套餐不存在');
+  }
   const existingPending = database
     .prepare("SELECT id FROM membership_orders WHERE user_id = ? AND status = 'pending_review' ORDER BY created_at DESC LIMIT 1")
     .get(userId);
@@ -1228,7 +1372,7 @@ function createMembershipManualOrder({ userId, amount, payerPhone, paidAt, payme
     id: uuidv4(),
     user_id: userId,
     amount,
-    plan_code: 'monthly_9_9',
+    plan_code: plan.code,
     status: 'pending_review',
     payer_phone: payerPhone,
     paid_at: paidAt,
@@ -1262,7 +1406,89 @@ function listMembershipOrders(status = 'pending_review') {
   return rows.map(normalizeMembershipOrder);
 }
 
-function approveMembershipOrder(orderId, reviewer = 'manual-admin', months = 1) {
+function createMembershipPurchaseOrder({ userId, amount, planCode, provider = 'wechat_virtual' }) {
+  const database = openDb();
+  const now = Date.now();
+  const normalizedPlanCode = normalizePlanCode(planCode);
+  const plan = getMembershipPlanByCode(normalizedPlanCode);
+  if (!plan) {
+    throw new Error('会员套餐不存在');
+  }
+  if (Number(amount) !== Number(plan.amount)) {
+    throw new Error(`当前${plan.name}价格为 ${plan.amount} 元`);
+  }
+
+  const order = {
+    id: uuidv4(),
+    user_id: userId,
+    amount: Number(plan.amount),
+    plan_code: plan.code,
+    status: 'pending_payment',
+    provider,
+    provider_order_id: createProviderOrderId(),
+    provider_transaction_id: null,
+    payment_payload: null,
+    paid_at: null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const tx = database.transaction(() => {
+    database.prepare(`
+      UPDATE membership_purchase_orders
+      SET status = 'closed', updated_at = ?
+      WHERE user_id = ? AND status = 'pending_payment'
+    `).run(now, userId);
+
+    database.prepare(`
+      INSERT INTO membership_purchase_orders (
+        id, user_id, amount, plan_code, status, provider, provider_order_id,
+        provider_transaction_id, payment_payload, paid_at, created_at, updated_at
+      ) VALUES (
+        @id, @user_id, @amount, @plan_code, @status, @provider, @provider_order_id,
+        @provider_transaction_id, @payment_payload, @paid_at, @created_at, @updated_at
+      )
+    `).run(order);
+  });
+
+  tx();
+  return normalizeMembershipPurchaseOrder(database.prepare('SELECT * FROM membership_purchase_orders WHERE id = ?').get(order.id));
+}
+
+function completeMembershipPurchaseOrder({ orderId, userId, providerTransactionId = '', paymentPayload = null }) {
+  const database = openDb();
+  const order = database.prepare('SELECT * FROM membership_purchase_orders WHERE id = ?').get(orderId);
+  if (!order || order.user_id !== userId || order.status !== 'pending_payment') {
+    return { order: null, membership: null };
+  }
+
+  const now = Date.now();
+  let membership = null;
+  const tx = database.transaction(() => {
+    membership = grantMembershipForPlan(database, {
+      userId: order.user_id,
+      planCode: order.plan_code,
+    });
+
+    database.prepare(`
+      UPDATE membership_purchase_orders
+      SET status = 'paid',
+          provider_transaction_id = ?,
+          payment_payload = ?,
+          paid_at = ?,
+          updated_at = ?
+      WHERE id = ?
+    `).run(providerTransactionId || order.provider_order_id, paymentPayload ? JSON.stringify(paymentPayload) : null, now, now, orderId);
+  });
+
+  tx();
+  return {
+    order: normalizeMembershipPurchaseOrder(database.prepare('SELECT * FROM membership_purchase_orders WHERE id = ?').get(orderId)),
+    membership,
+  };
+}
+
+function approveMembershipOrder(orderId, reviewer = 'manual-admin', overrideDays = null) {
   const database = openDb();
   const order = database.prepare('SELECT * FROM membership_orders WHERE id = ?').get(orderId);
   if (!order || order.status !== 'pending_review') {
@@ -1270,34 +1496,14 @@ function approveMembershipOrder(orderId, reviewer = 'manual-admin', months = 1) 
   }
 
   const now = Date.now();
-  const activeMembership = database
-    .prepare("SELECT * FROM memberships WHERE user_id = ? AND status = 'active' ORDER BY expire_at DESC LIMIT 1")
-    .get(order.user_id);
-  const startAt = activeMembership && activeMembership.expire_at > now ? activeMembership.expire_at : now;
-  const expireAt = startAt + months * 30 * 24 * 60 * 60 * 1000;
-
-  const membership = {
-    id: activeMembership?.id || uuidv4(),
-    user_id: order.user_id,
-    plan_code: order.plan_code,
-    status: 'active',
-    start_at: activeMembership?.start_at || now,
-    expire_at: expireAt,
-    created_at: activeMembership?.created_at || now,
-    updated_at: now,
-  };
+  let membership = null;
 
   const tx = database.transaction(() => {
-    database.prepare(`
-      INSERT INTO memberships (id, user_id, plan_code, status, start_at, expire_at, created_at, updated_at)
-      VALUES (@id, @user_id, @plan_code, @status, @start_at, @expire_at, @created_at, @updated_at)
-      ON CONFLICT(id) DO UPDATE SET
-        plan_code = excluded.plan_code,
-        status = excluded.status,
-        start_at = excluded.start_at,
-        expire_at = excluded.expire_at,
-        updated_at = excluded.updated_at
-    `).run(membership);
+    membership = grantMembershipForPlan(database, {
+      userId: order.user_id,
+      planCode: order.plan_code,
+      overrideDays,
+    });
 
     database.prepare(`
       UPDATE membership_orders
@@ -1309,7 +1515,7 @@ function approveMembershipOrder(orderId, reviewer = 'manual-admin', months = 1) 
   tx();
   return {
     order: normalizeMembershipOrder(database.prepare('SELECT * FROM membership_orders WHERE id = ?').get(orderId)),
-    membership: normalizeMembership(database.prepare('SELECT * FROM memberships WHERE id = ?').get(membership.id)),
+    membership,
   };
 }
 
@@ -1638,5 +1844,7 @@ module.exports = {
   getRitualSummary,
   recordRelationshipStarted,
   recordTextMessageRitual,
+  createMembershipPurchaseOrder,
+  completeMembershipPurchaseOrder,
   closeDb,
 };

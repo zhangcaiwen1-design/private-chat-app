@@ -203,8 +203,19 @@ export async function getMembershipStatus() {
   return request('/membership/me');
 }
 
-export async function submitMembershipManualOrder(payload) {
-  return request('/membership/manual-order', {
+export async function getMembershipPlans() {
+  return request('/membership/plans');
+}
+
+export async function createMembershipPurchaseOrder(payload) {
+  return request('/membership/purchase-order', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function completeMembershipPurchaseOrder(orderId, payload = {}) {
+  return request(`/membership/purchase-orders/${orderId}/complete`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });

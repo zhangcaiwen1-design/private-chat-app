@@ -3,13 +3,11 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacit
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  FALLBACK_MEMBERSHIP_PLANS,
   isActiveMembership,
-  MONTHLY_MEMBERSHIP_PLAN,
+  refreshMembershipPlans,
   refreshMembershipStatus,
-  requestMonthlyMembership,
 } from '../../services/MembershipService';
-
-const DEVELOPER_WECHAT = 'Nanny_1688';
 
 const BENEFITS = [
   { icon: 'chatbubbles-outline', title: '私密聊天', subtitle: '开通后进入聊天界面' },
@@ -40,12 +38,12 @@ function getStatusCopy(snapshot) {
     };
   }
 
-  if (snapshot.status === 'pending_review') {
+  if (snapshot.status === 'pending_payment') {
     return {
-      title: '待开通',
-      hint: '后台确认后会自动变为已开通',
-      icon: 'time-outline',
-      color: '#F59E0B',
+      title: '待支付',
+      hint: '请到微信小程序完成购买后刷新状态',
+      icon: 'card-outline',
+      color: '#3B82F6',
     };
   }
 
@@ -66,21 +64,50 @@ function getStatusCopy(snapshot) {
   };
 }
 
+function getPlanTotalDays(plan) {
+  return Number(plan?.totalDays || 0) || Number(plan?.days || 30) + Number(plan?.bonusDays || 0);
+}
+
+function formatPlanCaption(plan) {
+  if (!plan) {
+    return '';
+  }
+  if (plan.code === 'quarterly_99') {
+    return '平均约33元/月';
+  }
+  if (plan.code === 'annual_299') {
+    return '平均约24.9元/月';
+  }
+  if (plan.bonusDays) {
+    return `${plan.days}天 + 赠${plan.bonusDays}天`;
+  }
+  return `${plan.days}天有效`;
+}
+
 export default function MembershipCenter({ onBack, onLock, onMembershipActive, onSwitchAccount, isRequired = false }) {
   const insets = useSafeAreaInsets();
   const [snapshot, setSnapshot] = useState({ tier: 'free', status: 'inactive', expire_at: null, pending_order: null });
+  const [plans, setPlans] = useState(FALLBACK_MEMBERSHIP_PLANS);
+  const [selectedPlanCode, setSelectedPlanCode] = useState('first_month_19_9');
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
 
   const active = isActiveMembership(snapshot);
-  const pending = snapshot.status === 'pending_review';
   const statusCopy = getStatusCopy(snapshot);
+  const selectedPlan = plans.find((item) => item.code === selectedPlanCode) || plans[0] || FALLBACK_MEMBERSHIP_PLANS[0];
 
   const load = useCallback(async ({ showError = true } = {}) => {
     setLoading(true);
     try {
-      const membership = await refreshMembershipStatus();
+      const [membership, loadedPlans] = await Promise.all([
+        refreshMembershipStatus(),
+        refreshMembershipPlans(),
+      ]);
       setSnapshot(membership);
+      const nextPlans = loadedPlans?.length ? loadedPlans : membership.available_plans || FALLBACK_MEMBERSHIP_PLANS;
+      setPlans(nextPlans);
+      if (!nextPlans.some((item) => item.code === selectedPlanCode)) {
+        setSelectedPlanCode(nextPlans[0]?.code || 'first_month_19_9');
+      }
       return membership;
     } catch (error) {
       if (showError) {
@@ -90,7 +117,7 @@ export default function MembershipCenter({ onBack, onLock, onMembershipActive, o
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedPlanCode]);
 
   useEffect(() => {
     load();
@@ -108,43 +135,27 @@ export default function MembershipCenter({ onBack, onLock, onMembershipActive, o
       return;
     }
 
-    if (pending) {
-      const membership = await load();
+    if (snapshot.status === 'pending_payment') {
+      const membership = await load({ showError: false });
       if (isActiveMembership(membership)) {
         onMembershipActive && onMembershipActive();
+        return;
       }
+      Alert.alert('待支付', '请在微信小程序中完成支付后，再回到此页面刷新状态。');
       return;
     }
 
-    setSubmitting(true);
-    try {
-      const order = await requestMonthlyMembership();
-      setSnapshot((current) => ({
-        ...current,
-        tier: 'free',
-        status: 'pending_review',
-        plan_code: order.plan_code,
-        pending_order: order,
-      }));
-      Alert.alert('已提交开通申请', '后台开通后，点击刷新即可进入聊天。');
-    } catch (error) {
-      const message = error.message || '无法提交会员申请';
-      if (message.includes('待审核')) {
-        await load({ showError: false });
-        Alert.alert('正在处理中', '你已有待开通申请，审核后会自动生效。');
-      } else {
-        Alert.alert('提交失败', message);
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    Alert.alert(
+      '请在微信小程序购买',
+      `当前选择：${selectedPlan.name} ¥${selectedPlan.amount}。支付成功后系统会自动开通会员，回到这里点刷新即可同步状态。`,
+    );
   };
 
   const primaryLabel = active
     ? '进入聊天'
-    : pending
-      ? '刷新开通状态'
-      : `立即开通 ¥${MONTHLY_MEMBERSHIP_PLAN.amount}`;
+    : snapshot.status === 'pending_payment'
+      ? '查看支付状态'
+      : `去小程序购买 ¥${selectedPlan.amount}`;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -164,20 +175,40 @@ export default function MembershipCenter({ onBack, onLock, onMembershipActive, o
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.planPanel}>
-          <Text style={styles.planLabel}>私密聊天会员</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.currency}>¥</Text>
-            <Text style={styles.price}>{MONTHLY_MEMBERSHIP_PLAN.amount}</Text>
-            <Text style={styles.cycle}>/ 30天</Text>
+          <Text style={styles.planLabel}>选择会员套餐</Text>
+          <View style={styles.planGrid}>
+            {plans.map((plan) => {
+              const selected = plan.code === selectedPlan.code;
+              return (
+                <TouchableOpacity
+                  key={plan.code}
+                  activeOpacity={0.86}
+                  style={[styles.planCard, selected && styles.planCardSelected, plan.featured && styles.planCardFeatured]}
+                  onPress={() => setSelectedPlanCode(plan.code)}
+                >
+                  <View style={styles.planCardHeader}>
+                    <Text style={styles.planName}>{plan.name}</Text>
+                    {plan.badge ? <Text style={styles.planBadge}>{plan.badge}</Text> : null}
+                  </View>
+                  <View style={styles.planPriceRow}>
+                    <Text style={styles.planCurrency}>¥</Text>
+                    <Text style={styles.planPrice}>{plan.amount}</Text>
+                    <Text style={styles.planCycle}>/{plan.days}天</Text>
+                  </View>
+                  <Text style={styles.planCaption}>{formatPlanCaption(plan)}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-          <Text style={styles.planHint}>开通后进入聊天，聊天、表情包、云备份和设备同步都包含。</Text>
+          <Text style={styles.planHint}>开通后聊天、表情包、图片语音、云备份和账号同步都包含。</Text>
+          <Text style={styles.planHintSmall}>当前选择：{selectedPlan.name}，预计开通 {getPlanTotalDays(selectedPlan)} 天。</Text>
           <TouchableOpacity
-            style={[styles.primaryButton, (loading || submitting) && styles.primaryButtonDisabled]}
+            style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
             onPress={handlePrimaryAction}
-            disabled={loading || submitting}
+            disabled={loading}
             activeOpacity={0.86}
           >
-            {loading || submitting ? (
+            {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.primaryButtonText}>{primaryLabel}</Text>
@@ -200,6 +231,22 @@ export default function MembershipCenter({ onBack, onLock, onMembershipActive, o
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>赠送会员</Text>
+          <View style={styles.giftRow}>
+            <Text style={styles.giftTitle}>新用户体验</Text>
+            <Text style={styles.giftValue}>3天</Text>
+          </View>
+          <View style={styles.giftRow}>
+            <Text style={styles.giftTitle}>首购加赠</Text>
+            <Text style={styles.giftValue}>7天</Text>
+          </View>
+          <View style={styles.giftRow}>
+            <Text style={styles.giftTitle}>邀请好友</Text>
+            <Text style={styles.giftValue}>双方各3天</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>会员权益</Text>
           {BENEFITS.map((item) => (
             <View style={styles.benefitRow} key={item.title}>
@@ -217,16 +264,12 @@ export default function MembershipCenter({ onBack, onLock, onMembershipActive, o
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>开通方式</Text>
           <View style={styles.paymentRow}>
-            <Text style={styles.paymentLabel}>微信小程序虚拟支付</Text>
-            <Text style={styles.paymentStatus}>预留接入</Text>
+            <Text style={styles.paymentLabel}>微信小程序购买</Text>
+            <Text style={styles.paymentStatus}>已接入</Text>
           </View>
           <View style={styles.paymentRow}>
-            <Text style={styles.paymentLabel}>当前网页演示</Text>
-            <Text style={styles.paymentStatus}>{pending ? '待后台开通' : '提交开通申请'}</Text>
-          </View>
-          <View style={styles.paymentRow}>
-            <Text style={styles.paymentLabel}>人工兜底微信</Text>
-            <Text selectable style={styles.paymentStatus}>{DEVELOPER_WECHAT}</Text>
+            <Text style={styles.paymentLabel}>当前状态</Text>
+            <Text style={styles.paymentStatus}>{snapshot.status === 'pending_payment' ? '待支付' : '支付成功自动开通'}</Text>
           </View>
         </View>
 
@@ -250,11 +293,24 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 28 },
   planPanel: { backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 18, paddingVertical: 18, marginBottom: 12 },
   planLabel: { color: '#111111', fontSize: 17, fontWeight: '600', marginBottom: 10 },
+  planGrid: { gap: 10, marginBottom: 12 },
+  planCard: { borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#FFFFFF' },
+  planCardSelected: { borderColor: '#07C160', backgroundColor: '#F2FFF7' },
+  planCardFeatured: { borderColor: '#B7E9C9' },
+  planCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 },
+  planName: { color: '#111111', fontSize: 16, fontWeight: '700' },
+  planBadge: { color: '#07C160', fontSize: 12, fontWeight: '700', backgroundColor: '#E8F8EF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  planPriceRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 6 },
+  planCurrency: { color: '#111111', fontSize: 18, fontWeight: '800', marginBottom: 3 },
+  planPrice: { color: '#111111', fontSize: 32, fontWeight: '800', lineHeight: 36 },
+  planCycle: { color: '#6B6B6B', fontSize: 13, marginLeft: 5, marginBottom: 6 },
+  planCaption: { color: '#6B6B6B', fontSize: 12, lineHeight: 17 },
   priceRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 10 },
   currency: { color: '#111111', fontSize: 24, fontWeight: '700', marginBottom: 4 },
   price: { color: '#111111', fontSize: 44, fontWeight: '800', lineHeight: 50 },
   cycle: { color: '#6B6B6B', fontSize: 15, marginLeft: 6, marginBottom: 8 },
   planHint: { color: '#4F4F4F', fontSize: 14, lineHeight: 21, marginBottom: 16 },
+  planHintSmall: { color: '#8A8A8A', fontSize: 12, lineHeight: 18, marginTop: -8, marginBottom: 14 },
   primaryButton: { minHeight: 48, borderRadius: 24, backgroundColor: '#07C160', justifyContent: 'center', alignItems: 'center' },
   primaryButtonDisabled: { opacity: 0.66 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
@@ -274,6 +330,9 @@ const styles = StyleSheet.create({
   paymentRow: { minHeight: 38, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F1F1F1' },
   paymentLabel: { color: '#4F4F4F', fontSize: 14 },
   paymentStatus: { color: '#111111', fontSize: 14, fontWeight: '600', marginLeft: 12 },
+  giftRow: { minHeight: 38, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F1F1F1' },
+  giftTitle: { color: '#4F4F4F', fontSize: 14 },
+  giftValue: { color: '#07C160', fontSize: 14, fontWeight: '700' },
   secondaryButton: { minHeight: 46, borderRadius: 23, backgroundColor: '#FFFFFF', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   secondaryButtonText: { color: '#111111', fontSize: 14, fontWeight: '600' },
 });

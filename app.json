@@ -2,7 +2,7 @@
   "expo": {
     "name": "计算器",
     "slug": "calculator",
-    "version": "1.0.8",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "calculator",
@@ -13,7 +13,7 @@
       "adminEntryCode": "",
       "appUnlockPin": "",
       "membershipPaymentQrUrl": "",
-      "membershipPaymentNote": "付款备注请填写你的用户ID，提交后等待人工开通。",
+      "membershipPaymentNote": "在微信小程序内完成支付后，系统会自动开通会员。",
       "appDownloadUrl": "https://privatechat.yifan1.com/download/latest.apk",
       "appVersionConfigUrl": "https://privatechat.yifan1.com/app-version.json",
       "router": {},
@@ -24,11 +24,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.privatechatapp.calculator",
-      "buildNumber": "1.0.8"
+      "buildNumber": "1.0.11"
     },
     "android": {
       "package": "com.privatechatapp.calculator",
-      "versionCode": 9,
+      "versionCode": 12,
       "adaptiveIcon": {
         "backgroundColor": "#1C1C1E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

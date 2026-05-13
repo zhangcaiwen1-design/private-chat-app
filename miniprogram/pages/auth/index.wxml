@@ -1,0 +1,30 @@
+<view class="auth-screen" style="padding-top: {{safeTop}}px;">
+  <view class="auth-header">
+    <text class="auth-title">手机号绑定</text>
+  </view>
+
+  <view class="auth-content">
+    <text class="auth-copy">第一次使用只需要填写手机号和计算器进入密码。手机号用于同步账号，密码只保存在这台设备，用来从计算器界面进入聊天。</text>
+
+    <input class="auth-input" type="number" maxlength="11" value="{{phone}}" placeholder="输入手机号" placeholder-class="placeholder" bindinput="onPhoneInput" />
+    <input class="auth-input" type="number" password="true" value="{{password}}" placeholder="默认 1111，可修改" placeholder-class="placeholder" bindinput="onPasswordInput" />
+    <text class="pin-note">默认进入密码为 1111，后续可在设置里修改。</text>
+
+    <checkbox-group bindchange="onAgreementChange">
+      <label class="agreement-row">
+        <checkbox value="yes" checked="{{agreed}}" color="#07c160" />
+        <text class="agreement-text">我已阅读并同意
+          <text class="link" bindtap="openAgreement" data-type="privacy">隐私政策</text>
+          <text>、</text>
+          <text class="link" bindtap="openAgreement" data-type="terms">用户协议</text>
+          <text>和</text>
+          <text class="link" bindtap="openAgreement" data-type="membership">会员服务协议</text>
+        </text>
+      </label>
+    </checkbox-group>
+
+    <text class="error" wx:if="{{error}}">{{error}}</text>
+
+    <button class="primary-button" loading="{{loading}}" bindtap="submit">{{loading ? '进入中...' : '保存并进入'}}</button>
+  </view>
+</view>

@@ -18,7 +18,8 @@ async function activatePaidMembership(userHeaders, payerPhone = userHeaders['x-u
     .post('/api/v1/membership/manual-order')
     .set(userHeaders)
     .send({
-      amount: 9.9,
+      amount: 19.9,
+      plan_code: 'first_month_19_9',
       payer_phone: payerPhone,
       paid_at: Date.now(),
       payment_proof: 'data:image/png;base64,ZmFrZQ==',
@@ -956,7 +957,7 @@ test('ritual summary tracks longest late-night chat and accumulates love value',
   expect(summaryRes.body.milestones.some((item) => item.type === 'late_night_long_talk')).toBe(true);
 });
 
-test('membership stays free until a manual order is approved', async () => {
+test('manual membership orders stay hidden from user state until approved', async () => {
   const userHeaders = {
     'x-user-id': 'membership-user-1',
     'x-user-name': 'membership-user-1',
@@ -976,7 +977,8 @@ test('membership stays free until a manual order is approved', async () => {
     .post('/api/v1/membership/manual-order')
     .set(userHeaders)
     .send({
-      amount: 9.9,
+      amount: 19.9,
+      plan_code: 'first_month_19_9',
       payer_phone: '13955550001',
       paid_at: 1715251200000,
       payment_proof: 'data:image/png;base64,ZmFrZQ==',
@@ -985,7 +987,7 @@ test('membership stays free until a manual order is approved', async () => {
     .expect(200);
 
   expect(orderRes.body.order.status).toBe('pending_review');
-  expect(orderRes.body.order.plan_code).toBe('monthly_9_9');
+  expect(orderRes.body.order.plan_code).toBe('first_month_19_9');
 
   const pendingRes = await request(app)
     .get('/api/v1/membership/me')
@@ -993,7 +995,8 @@ test('membership stays free until a manual order is approved', async () => {
     .expect(200);
 
   expect(pendingRes.body.tier).toBe('free');
-  expect(pendingRes.body.status).toBe('pending_review');
+  expect(pendingRes.body.status).toBe('inactive');
+  expect(pendingRes.body.pending_order).toBeNull();
 
   await request(app)
     .post('/api/v1/cloud-backups')
@@ -1004,6 +1007,55 @@ test('membership stays free until a manual order is approved', async () => {
       content: '未开通不能上云',
     })
     .expect(403);
+});
+
+test('paid purchase order activates membership automatically', async () => {
+  const userHeaders = {
+    'x-user-id': 'membership-purchase-user',
+    'x-user-name': 'membership-purchase-user',
+    'x-user-phone': '13955550100',
+  };
+
+  const orderRes = await request(app)
+    .post('/api/v1/membership/purchase-order')
+    .set(userHeaders)
+    .send({ plan_code: 'quarterly_99' })
+    .expect(200);
+
+  expect(orderRes.body.order.status).toBe('pending_payment');
+  expect(orderRes.body.order.plan_code).toBe('quarterly_99');
+  expect(orderRes.body.payment.method).toBe('test_complete');
+
+  const pendingRes = await request(app)
+    .get('/api/v1/membership/me')
+    .set(userHeaders)
+    .expect(200);
+
+  expect(pendingRes.body.tier).toBe('free');
+  expect(pendingRes.body.status).toBe('pending_payment');
+
+  const completeRes = await request(app)
+    .post(`/api/v1/membership/purchase-orders/${orderRes.body.order.id}/complete`)
+    .set(userHeaders)
+    .send({
+      provider_transaction_id: 'test-transaction-100',
+      payment_result: { errMsg: 'requestVirtualPayment:ok' },
+    })
+    .expect(200);
+
+  expect(completeRes.body.order.status).toBe('paid');
+  expect(completeRes.body.membership.status).toBe('active');
+  expect(completeRes.body.membership.plan_code).toBe('quarterly_99');
+  expect(completeRes.body.snapshot.tier).toBe('paid');
+
+  const meRes = await request(app)
+    .get('/api/v1/membership/me')
+    .set(userHeaders)
+    .expect(200);
+
+  expect(meRes.body.tier).toBe('paid');
+  expect(meRes.body.status).toBe('active');
+  expect(meRes.body.plan_code).toBe('quarterly_99');
 });
 
 test('admin approval activates membership and unlocks cloud access', async () => {
@@ -1023,7 +1075,8 @@ test('admin approval activates membership and unlocks cloud access', async () =>
     .post('/api/v1/membership/manual-order')
     .set(userHeaders)
     .send({
-      amount: 9.9,
+      amount: 19.9,
+      plan_code: 'first_month_19_9',
       payer_phone: '13955550002',
       paid_at: 1715251300000,
       payment_proof: 'data:image/png;base64,ZmFrZTI=',
@@ -1045,7 +1098,7 @@ test('admin approval activates membership and unlocks cloud access', async () =>
     .expect(200);
 
   expect(approveRes.body.membership.status).toBe('active');
-  expect(approveRes.body.membership.plan_code).toBe('monthly_9_9');
+  expect(approveRes.body.membership.plan_code).toBe('first_month_19_9');
   expect(approveRes.body.membership.expire_at).toBeGreaterThan(Date.now());
 
   const meRes = await request(app)
@@ -1078,7 +1131,8 @@ test('admin can reject a pending membership order', async () => {
     .post('/api/v1/membership/manual-order')
     .set(userHeaders)
     .send({
-      amount: 9.9,
+      amount: 19.9,
+      plan_code: 'first_month_19_9',
       payer_phone: '13955550003',
       paid_at: 1715251400000,
       payment_proof: 'data:image/png;base64,ZmFrZTM=',

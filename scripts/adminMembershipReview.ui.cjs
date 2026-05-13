@@ -28,7 +28,8 @@ async function createMembershipOrder() {
       'x-user-phone': '13988889999',
     },
     body: JSON.stringify({
-      amount: 9.9,
+      amount: 19.9,
+      plan_code: 'first_month_19_9',
       payer_phone: '13988889999',
       paid_at: Date.now(),
       payment_proof: 'data:image/png;base64,ZmFrZQ==',
@@ -70,7 +71,7 @@ async function main() {
   await page.locator('#adminKey').fill(ADMIN_MEMBERSHIP_KEY);
   await page.getByRole('button', { name: '刷新列表', exact: true }).click();
   await page.getByText(order.id, { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-  await page.locator(`#months-${order.id}`).fill('1');
+  await page.locator(`#days-${order.id}`).fill(String(order.plan_total_days || 37));
   await page.locator(`[data-order-id="${order.id}"]`).getByRole('button', { name: '通过', exact: true }).click();
     await page.getByText('会员已通过审核并开通。', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
     await verifyApproved(order.id);

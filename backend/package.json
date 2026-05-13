@@ -1,6 +1,6 @@
 {
   "name": "privatechat-local-backend",
-  "version": "1.0.8",
+  "version": "1.0.11",
   "description": "Local Private Chat App Backend API",
   "main": "server.js",
   "scripts": {

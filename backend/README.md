@@ -29,6 +29,13 @@ The server listens on `PORT` (default `3001`) and binds to `0.0.0.0` so Expo cli
 | --- | --- | --- | --- |
 | `PORT` | No | `3001` | Express server port. |
 | `DB_PATH` | No | `./data/app.db` | SQLite database file path. Relative paths are resolved from the process working directory. |
+| `WECHAT_MINIPROGRAM_APP_ID` | Yes for purchase flow | - | WeChat Mini Program AppID. |
+| `WECHAT_MINIPROGRAM_APP_SECRET` | Yes for purchase flow | - | WeChat Mini Program AppSecret. |
+| `WECHAT_VIRTUAL_PAY_OFFER_ID` | Yes for purchase flow | - | WeChat virtual payment offer ID. |
+| `WECHAT_VIRTUAL_PAY_APP_KEY` | Yes for purchase flow | - | WeChat virtual payment signing key. |
+| `WECHAT_VIRTUAL_PAY_PRODUCT_<PLAN>` | Yes for purchase flow | plan code | Optional product ID overrides for each plan. |
+| `WECHAT_VIRTUAL_PAY_ENV` | No | `0` | WeChat virtual payment environment id. |
+| `WECHAT_VIRTUAL_PAY_CURRENCY` | No | `CNY` | Currency code used in payment payload. |
 
 ## API
 

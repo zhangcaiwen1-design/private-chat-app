@@ -1,0 +1,48 @@
+<view class="calculator-screen">
+  <view class="top-safe" style="top: {{safeTop}}px;">
+    <button class="logout" size="mini" bindtap="logout">退出</button>
+  </view>
+
+  <view class="display-block">
+    <text class="hint" wx:if="{{error}}">{{error}}</text>
+    <text class="display" selectable="false">{{expression}}</text>
+    <text class="result" wx:if="{{result && result !== expression}}">{{result}}</text>
+  </view>
+
+  <view class="verifying" wx:if="{{verifying}}">
+    <view class="spinner"></view>
+    <text>验证中</text>
+  </view>
+
+  <view class="keypad" wx:else>
+    <view class="calc-row">
+      <view class="key utility" bindtap="clear">{{expression === '0' ? 'AC' : 'C'}}</view>
+      <view class="key utility" bindtap="backspace">⌫</view>
+      <view class="key utility" bindtap="percent">%</view>
+      <view class="key operator" data-value="/" bindtap="append">÷</view>
+    </view>
+    <view class="calc-row">
+      <view class="key number" data-value="7" bindtap="append">7</view>
+      <view class="key number" data-value="8" bindtap="append">8</view>
+      <view class="key number" data-value="9" bindtap="append">9</view>
+      <view class="key operator" data-value="*" bindtap="append">×</view>
+    </view>
+    <view class="calc-row">
+      <view class="key number" data-value="4" bindtap="append">4</view>
+      <view class="key number" data-value="5" bindtap="append">5</view>
+      <view class="key number" data-value="6" bindtap="append">6</view>
+      <view class="key operator" data-value="-" bindtap="append">−</view>
+    </view>
+    <view class="calc-row">
+      <view class="key number" data-value="1" bindtap="append">1</view>
+      <view class="key number" data-value="2" bindtap="append">2</view>
+      <view class="key number" data-value="3" bindtap="append">3</view>
+      <view class="key operator" data-value="+" bindtap="append">+</view>
+    </view>
+    <view class="calc-row">
+      <view class="key number wide" data-value="0" bindtap="append">0</view>
+      <view class="key number" data-value="." bindtap="append">.</view>
+      <view class="key operator" bindtap="evaluate">=</view>
+    </view>
+  </view>
+</view>

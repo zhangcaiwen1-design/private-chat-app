@@ -48,7 +48,8 @@ async function createManualOrder(headers) {
       'x-user-phone': headers['x-user-phone'],
     },
     body: JSON.stringify({
-      amount: 9.9,
+      amount: 19.9,
+      plan_code: 'first_month_19_9',
       payer_phone: headers['x-user-phone'],
       paid_at: Date.now(),
       payment_proof: 'data:image/png;base64,ZmFrZQ==',

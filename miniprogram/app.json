@@ -1,0 +1,20 @@
+{
+  "pages": [
+    "pages/lock/index",
+    "pages/auth/index",
+    "pages/membership/index",
+    "pages/chats/index",
+    "pages/chat/index",
+    "pages/settings/index",
+    "pages/agreement/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#ededed",
+    "navigationBarTitleText": "私密聊天助手",
+    "navigationBarTextStyle": "black"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

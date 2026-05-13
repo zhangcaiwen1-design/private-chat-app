@@ -1,0 +1,191 @@
+<view class="chat-list-screen" style="padding-bottom: {{listBottomPadding}}px;">
+  <view class="header" style="padding-top: {{navTop}}px; padding-right: {{navRightPadding}}px; min-height: {{headerHeight}}px;">
+    <view class="header-title-row">
+      <view wx:if="{{activePanel === 'requests'}}" class="header-back" bindtap="backToContacts">
+        <view class="line-icon icon-back"></view>
+      </view>
+      <text class="page-title">{{activePanel === 'requests' ? '新朋友' : activeTab === 'messages' ? '聊天' : '通讯录'}}</text>
+    </view>
+    <view class="header-actions">
+      <view class="header-button" bindtap="openLock">
+        <view class="line-icon icon-calculator"></view>
+      </view>
+      <view class="header-button" bindtap="openAdd">
+        <view class="line-icon icon-plus"></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="search-bar">
+    <view class="line-icon icon-search search-icon"></view>
+    <input class="search-input" value="{{searchText}}" placeholder="搜索" placeholder-class="placeholder" bindinput="onSearchInput" />
+  </view>
+
+  <view wx:if="{{loading}}" class="empty-state">正在加载聊天列表…</view>
+
+  <block wx:elif="{{activeTab === 'messages'}}">
+    <view wx:if="{{displayRequests.length}}" class="request-panel" bindtap="openRequestsPanel">
+      <view class="request-header">
+        <view>
+          <text class="request-title">好友申请</text>
+          <text class="request-subtitle">{{displayRequests.length}} 条待处理</text>
+        </view>
+        <view class="request-badge">{{displayRequests.length}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{displayContacts.length}}" class="contact-list">
+      <view
+        class="contact-item"
+        wx:for="{{displayContacts}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        data-name="{{item.name}}"
+        bindtap="openChat"
+      >
+        <view class="avatar {{item.avatarClass}}">{{item.avatarText}}</view>
+        <view class="contact-main">
+          <view class="contact-head">
+            <text class="contact-name">{{item.name}}</text>
+            <text class="contact-time">{{item.updatedAtText}}</text>
+          </view>
+          <view class="contact-bottom">
+            <text class="contact-preview">{{item.preview}}</text>
+            <view class="line-icon icon-chevron"></view>
+          </view>
+        </view>
+        <view wx:if="{{item.pending}}" class="status-pill">已发送</view>
+      </view>
+    </view>
+
+    <view wx:if="{{!displayContacts.length}}" class="empty-state">
+      暂无联系人，点击右上角通过手机号添加
+    </view>
+  </block>
+
+  <block wx:elif="{{activePanel === 'requests'}}">
+    <view wx:if="{{displayRequests.length}}" class="request-screen">
+      <view class="request-item-screen" wx:for="{{displayRequests}}" wx:key="id">
+        <view class="request-icon"><view class="line-icon icon-phone"></view></view>
+        <view class="contact-main">
+          <view class="request-name-row">
+            <text class="request-name">{{item.requesterName}}</text>
+            <text class="request-tag">手机号添加</text>
+          </view>
+          <text class="request-meta">对方通过手机号搜索向你发来申请</text>
+        </view>
+        <button class="accept-btn" data-id="{{item.id}}" bindtap="acceptRequest">接受</button>
+      </view>
+    </view>
+    <view wx:else class="empty-state">还没有新的好友申请</view>
+  </block>
+
+  <block wx:else>
+    <view class="directory-section">
+      <view class="directory-item" data-action="requests" bindtap="openDirectoryAction">
+        <view class="directory-icon green"><view class="line-icon icon-plus"></view></view>
+        <view class="directory-main">
+          <text class="directory-title">新朋友</text>
+          <text class="directory-subtitle">{{directoryRequestsSubtitle}}</text>
+        </view>
+        <view wx:if="{{displayRequests.length}}" class="directory-badge">{{displayRequests.length}}</view>
+        <view class="line-icon icon-chevron"></view>
+      </view>
+      <view class="directory-item" data-action="add" bindtap="openDirectoryAction">
+        <view class="directory-icon blue"><view class="line-icon icon-phone"></view></view>
+        <view class="directory-main">
+          <text class="directory-title">手机号添加</text>
+          <text class="directory-subtitle">搜索手机号，发送好友申请</text>
+        </view>
+        <view class="line-icon icon-chevron"></view>
+      </view>
+      <view class="directory-item" data-action="settings" bindtap="openDirectoryAction">
+        <view class="directory-icon purple"><view class="line-icon icon-key"></view></view>
+        <view class="directory-main">
+          <text class="directory-title">账号与密码</text>
+          <text class="directory-subtitle">修改手机号、昵称和进入密码</text>
+        </view>
+        <view class="line-icon icon-chevron"></view>
+      </view>
+      <view class="directory-item" data-action="membership" bindtap="openDirectoryAction">
+        <view class="directory-icon amber"><view class="line-icon icon-card"></view></view>
+        <view class="directory-main">
+          <text class="directory-title">会员中心</text>
+          <text class="directory-subtitle">首月19.9元/30天，首购赠7天</text>
+        </view>
+        <view class="line-icon icon-chevron"></view>
+      </view>
+      <view class="directory-item" data-action="lock" bindtap="openDirectoryAction">
+        <view class="directory-icon gray"><view class="line-icon icon-calculator light"></view></view>
+        <view class="directory-main">
+          <text class="directory-title">立即伪装</text>
+          <text class="directory-subtitle">返回计算器入口并锁定聊天</text>
+        </view>
+        <view class="line-icon icon-chevron"></view>
+      </view>
+    </view>
+
+    <view class="directory-label">联系人</view>
+    <view wx:if="{{displayContacts.length}}" class="contact-list">
+      <view
+        class="contact-item"
+        wx:for="{{displayContacts}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        data-name="{{item.name}}"
+        bindtap="openChat"
+      >
+        <view class="avatar {{item.avatarClass}}">{{item.avatarText}}</view>
+        <view class="contact-main simple">
+          <text class="contact-name">{{item.name}}</text>
+          <text class="contact-preview">{{item.pending ? '等待对方通过' : '已建立会话'}}</text>
+        </view>
+        <view class="line-icon icon-chevron"></view>
+      </view>
+    </view>
+    <view wx:else class="empty-state">通讯录还是空的</view>
+  </block>
+
+  <view wx:if="{{showAdd}}" class="mask" bindtap="closeAdd"></view>
+  <view wx:if="{{showAdd}}" class="sheet">
+    <view class="sheet-card">
+      <view class="sheet-top">
+        <text class="sheet-title">手机号添加</text>
+        <text class="sheet-close" bindtap="closeAdd">关闭</text>
+      </view>
+      <text class="sheet-hint">先输入对方手机号搜索，确认昵称后再发送好友申请。</text>
+      <input class="sheet-input" type="number" maxlength="11" value="{{newPhone}}" placeholder="对方手机号" placeholder-class="placeholder" bindinput="onPhoneInput" />
+      <button class="lookup-button" loading="{{lookupLoading}}" bindtap="lookupPhone">{{lookupLoading ? '搜索中...' : '搜索手机号'}}</button>
+
+      <view wx:if="{{phoneLookupResult}}" class="lookup-result">
+        <text class="lookup-title">搜索结果</text>
+        <text class="lookup-name">{{phoneLookupResult.nickname}}</text>
+        <text class="lookup-hint">确认无误后发送好友申请，对方不会看到你的备注。</text>
+      </view>
+
+      <input class="sheet-input" value="{{newName}}" placeholder="备注名（可修改）" placeholder-class="placeholder" bindinput="onNameInput" />
+      <view class="sheet-actions">
+        <button class="cancel-button" bindtap="closeAdd">取消</button>
+        <button class="add-button" loading="{{submitting}}" bindtap="submitContact">发送申请</button>
+      </view>
+      <text class="sheet-error" wx:if="{{error}}">{{error}}</text>
+    </view>
+  </view>
+
+  <view class="tab-bar" style="padding-bottom: {{safeBottom}}px;">
+    <view class="tab-item {{activeTab === 'messages' ? 'active' : ''}}" data-tab="messages" bindtap="switchTab">
+      <view class="tab-icon-wrap"><view class="line-icon icon-message"></view></view>
+      <text class="tab-text {{activeTab === 'messages' ? 'active' : ''}}">消息</text>
+    </view>
+    <view class="tab-item {{activeTab === 'contacts' ? 'active' : ''}}" data-tab="contacts" bindtap="switchTab">
+      <view class="tab-icon-wrap"><view class="line-icon icon-contacts"></view></view>
+      <text class="tab-text {{activeTab === 'contacts' ? 'active' : ''}}">通讯录</text>
+    </view>
+    <view class="tab-item" bindtap="openLock">
+      <view class="tab-icon-wrap"><view class="line-icon icon-calculator"></view></view>
+      <text class="tab-text">伪装</text>
+    </view>
+  </view>
+
+  <text class="page-error" wx:if="{{error && !showAdd}}">{{error}}</text>
+</view>

@@ -19,3 +19,4 @@ backend/data/*.db-*
 expo-env.d.ts
 # @end expo-cli
 .gstack/
+miniprogram/project.private.config.json

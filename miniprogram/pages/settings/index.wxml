@@ -1,0 +1,41 @@
+<view class="screen">
+  <view class="panel stack">
+    <view class="row">
+      <view>
+        <view class="chip">设置</view>
+        <view class="title" style="font-size:40rpx;margin-top:14rpx;">账号与密码</view>
+      </view>
+      <button class="btn secondary" size="mini" bindtap="logout">退出登录</button>
+    </view>
+
+    <view class="field">
+      <text class="label">手机号</text>
+      <input class="input" type="number" maxlength="11" value="{{phone}}" bindinput="onPhoneInput" />
+    </view>
+
+    <view class="field">
+      <text class="label">昵称</text>
+      <input class="input" value="{{nickname}}" bindinput="onNicknameInput" />
+    </view>
+
+    <button class="btn" loading="{{loading}}" bindtap="saveProfile">保存资料</button>
+
+    <view class="divider"></view>
+
+    <view class="field">
+      <text class="label">新的本地密码</text>
+      <input class="input" password="true" value="{{password}}" bindinput="onPasswordInput" />
+    </view>
+    <button class="btn secondary" loading="{{loading}}" bindtap="savePassword">更新密码</button>
+
+    <view class="subtitle tiny">
+      <text style="color:#b86b12;" bindtap="openAgreement" data-type="privacy">隐私政策</text>
+      ·
+      <text style="color:#b86b12;" bindtap="openAgreement" data-type="terms">用户协议</text>
+      ·
+      <text style="color:#b86b12;" bindtap="openAgreement" data-type="membership">会员服务协议</text>
+    </view>
+
+    <text class="muted" wx:if="{{message}}">{{message}}</text>
+  </view>
+</view>

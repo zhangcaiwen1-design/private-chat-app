@@ -255,7 +255,7 @@ export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRitual
     {
       key: 'membership-center',
       title: '会员中心',
-      subtitle: '9.9元/30天，聊天和云端能力全部解锁',
+      subtitle: '首月19.9元/30天，首购赠7天',
       icon: 'card-outline',
       iconColor: '#FFFFFF',
       iconBackground: '#F59E0B',

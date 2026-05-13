@@ -26,8 +26,12 @@ router.get('/membership-orders', (req, res) => {
 });
 
 router.post('/membership-orders/:id/approve', (req, res) => {
-  const months = Math.max(1, Number(req.body.months) || 1);
-  const result = approveMembershipOrder(req.params.id, 'manual-admin', months);
+  const days = req.body.days
+    ? Math.max(1, Number(req.body.days) || 1)
+    : req.body.months
+      ? Math.max(1, Number(req.body.months) || 1) * 30
+      : null;
+  const result = approveMembershipOrder(req.params.id, 'manual-admin', days);
   if (!result.order) {
     return res.status(404).json({ error: '待审核订单不存在' });
   }

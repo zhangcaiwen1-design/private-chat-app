@@ -1,0 +1,108 @@
+<view class="chat-screen">
+  <view class="chat-header" style="padding-top: {{navTop}}px; padding-right: {{navRightPadding}}px; min-height: {{headerHeight}}px;">
+    <view class="header-icon" bindtap="openContacts">
+      <view class="line-icon icon-back"></view>
+    </view>
+    <view class="header-center">
+      <text class="chat-title">{{contact.name}}</text>
+      <text class="chat-subtitle">本地私密 · 仅此设备</text>
+    </view>
+    <view class="header-actions">
+      <view class="header-icon small" bindtap="openLock">
+        <view class="line-icon icon-lock"></view>
+      </view>
+      <view class="header-icon small" bindtap="toggleMore">
+        <view class="line-icon icon-more"></view>
+      </view>
+    </view>
+  </view>
+
+  <scroll-view class="message-list" style="padding-bottom: {{listBottomPadding}}px;" scroll-y="true" scroll-into-view="{{scrollTarget}}" enhanced="true">
+    <view wx:if="{{loading}}" class="empty">正在加载消息…</view>
+    <view wx:elif="{{messages.length}}">
+      <view
+        id="msg-{{index}}"
+        class="message-row {{item.isMe ? 'mine' : 'theirs'}}"
+        wx:for="{{messages}}"
+        wx:key="id"
+      >
+        <view wx:if="{{!item.isMe}}" class="msg-avatar other">{{contact.avatarText}}</view>
+        <view class="bubble {{item.type === 'sticker' ? 'sticker-bubble' : ''}} {{item.type === 'image' ? 'image-bubble' : ''}}">
+          <view wx:if="{{item.type === 'sticker'}}" class="sticker-message">
+            <text class="sticker-emoji">{{item.sticker ? item.sticker.emoji : '🙂'}}</text>
+          </view>
+          <image wx:elif="{{item.type === 'image'}}" class="image-message" src="{{item.content}}" mode="aspectFill" />
+          <view wx:elif="{{item.type === 'voice'}}" class="voice-message" data-uri="{{item.content}}" bindtap="playVoice">
+            <text class="voice-icon">●</text>
+            <text>{{item.duration || 1}}''</text>
+          </view>
+          <text wx:else class="text-message">{{item.content}}</text>
+        </view>
+        <view wx:if="{{item.isMe}}" class="msg-avatar mine">我</view>
+      </view>
+    </view>
+    <view wx:else class="empty">先发第一条消息吧</view>
+  </scroll-view>
+
+  <text class="error" wx:if="{{error}}">{{error}}</text>
+
+  <view class="input-bar" style="padding-bottom: {{inputBarBottomPadding}}px;">
+    <view class="round-icon" bindtap="toggleVoiceMode">
+      <view class="line-icon {{voiceMode ? 'icon-keyboard' : 'icon-mic'}}"></view>
+    </view>
+    <view class="input-wrap">
+      <view
+        wx:if="{{voiceMode}}"
+        class="voice-press {{isRecording ? 'active' : ''}}"
+        bindtouchstart="startRecording"
+        bindtouchend="stopRecording"
+        bindtouchcancel="cancelRecording"
+      >
+        {{isRecording ? '松开发送' : '按住 说话'}}
+      </view>
+      <input
+        wx:else
+        class="message-input"
+        value="{{inputValue}}"
+        placeholder="输入消息"
+        placeholder-class="placeholder"
+        confirm-type="send"
+        bindinput="onInput"
+        bindconfirm="sendText"
+      />
+    </view>
+    <button wx:if="{{!voiceMode && inputValue}}" class="send-button" bindtap="sendText">发送</button>
+    <view wx:if="{{!voiceMode}}" class="round-icon" bindtap="toggleMore">
+      <view class="line-icon {{showMore ? 'icon-close' : 'icon-plus'}}"></view>
+    </view>
+  </view>
+
+  <view class="recording-toast" wx:if="{{isRecording}}">
+    <text class="record-dot">●</text>
+    <text>正在录音 {{recordingDuration}}s</text>
+  </view>
+
+  <view class="more-panel" wx:if="{{showMore}}" style="bottom: {{overlayBottomOffset}}px; height: {{morePanelHeight}}px;">
+    <view class="more-item" bindtap="chooseAlbum">
+      <view class="more-icon"><view class="line-icon icon-image"></view></view>
+      <text>相册</text>
+    </view>
+    <view class="more-item" bindtap="takePhoto">
+      <view class="more-icon"><view class="line-icon icon-camera"></view></view>
+      <text>拍照</text>
+    </view>
+    <view class="more-item" bindtap="openStickers">
+      <view class="more-icon"><view class="line-icon icon-smile"></view></view>
+      <text>表情包</text>
+    </view>
+  </view>
+
+  <scroll-view class="sticker-panel" wx:if="{{showStickers}}" style="bottom: {{overlayBottomOffset}}px; height: {{stickerPanelHeight}}px;" scroll-y="true">
+    <view class="sticker-grid">
+      <view class="sticker-item" wx:for="{{stickers}}" wx:key="id" data-id="{{item.id}}" bindtap="sendSticker">
+        <text class="sticker-pick-emoji">{{item.emoji}}</text>
+        <text class="sticker-pick-label" style="color: {{item.accentColor}};">{{item.label}}</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>
