@@ -3,379 +3,228 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PrivateChat | 私密聊天专题页</title>
-  <meta name="description" content="PrivateChat 私密聊天助手专题页，展示计算器伪装、阅后即焚、自动回退和云端恢复等功能。" />
+  <title>安心聊天</title>
+  <meta name="description" content="安心聊天是一款面向双人沟通的私密聊天工具，支持手机号登录、联系人管理、文字、图片、语音、二维码添加好友和云端记录。" />
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f5f5f7;
-      --panel: rgba(255, 255, 255, 0.84);
-      --panel-solid: #ffffff;
-      --text: #111113;
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --text: #172026;
       --muted: #5f6368;
-      --line: #e5e7ec;
-      --accent: #ff9f0a;
-      --accent-2: #0a84ff;
-      --accent-3: #111113;
-      --shadow: 0 24px 80px rgba(31, 34, 40, 0.12);
+      --line: #e5e7eb;
+      --accent: #0f766e;
+      --dark: #111827;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      background:
-        radial-gradient(circle at 12% 10%, rgba(255,255,255,0.95), rgba(245,245,247,0) 30%),
-        radial-gradient(circle at 88% 16%, rgba(216,218,223,0.65), rgba(245,245,247,0) 24%),
-        linear-gradient(180deg, #ffffff, #f5f5f7 52%, #ffffff);
+      background: var(--bg);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
-      -webkit-font-smoothing: antialiased;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.75;
     }
     a { color: inherit; text-decoration: none; }
-    h1, h2, h3, p { margin: 0; }
-    .shell {
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-    .topbar,
-    .hero,
-    .feature-grid,
-    .entry,
-    .download-band {
-      width: min(1180px, calc(100% - 32px));
-      margin: 0 auto;
-    }
     .topbar {
       position: sticky;
       top: 0;
-      z-index: 20;
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      gap: 20px;
-      min-height: 64px;
-      padding: 10px 0;
-      background: rgba(255,255,255,0.84);
-      backdrop-filter: blur(18px);
-      border-bottom: 1px solid rgba(17,17,19,0.06);
-    }
-    .brand {
-      font-size: 19px;
-      font-weight: 760;
-      letter-spacing: 0;
-    }
-    .nav {
+      z-index: 10;
       display: flex;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 64px;
+      padding: 0 24px;
+      background: rgba(255,255,255,0.92);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px);
     }
-    .nav a,
-    .top-cta,
-    .primary,
-    .secondary {
+    .brand { font-weight: 800; font-size: 18px; }
+    nav { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    nav a, .button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       min-height: 38px;
       padding: 0 14px;
-      border-radius: 19px;
-      font-size: 14px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .nav a,
-    .top-cta,
-    .secondary {
-      color: #5f6368;
-      border: 1px solid transparent;
-    }
-    .nav a:hover,
-    .top-cta:hover,
-    .secondary:hover {
+      border-radius: 10px;
+      border: 1px solid var(--line);
       background: #fff;
-      color: #111113;
-      border-color: #e7e8ec;
+      color: #374151;
+      font-size: 14px;
+      font-weight: 650;
     }
-    .top-cta,
-    .primary {
-      background: #111113;
-      color: #fff;
-    }
+    .button.primary { background: var(--dark); color: #fff; border-color: var(--dark); }
+    main { max-width: 980px; margin: 0 auto; padding: 48px 20px 80px; }
     .hero {
+      padding: 44px 0 48px;
       display: grid;
-      grid-template-columns: minmax(0, 0.88fr) minmax(530px, 1fr);
-      gap: 40px;
-      align-items: center;
-      min-height: calc(100vh - 64px);
-      padding: 52px 0 68px;
+      gap: 22px;
     }
-    .eyebrow {
-      color: #ff9f0a;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-    h1 {
-      max-width: 760px;
-      margin-top: 16px;
-      font-size: clamp(50px, 5.9vw, 96px);
-      line-height: 0.96;
-      letter-spacing: 0;
-    }
-    .summary {
-      max-width: 610px;
-      margin-top: 24px;
-      color: var(--muted);
-      font-size: 18px;
-      line-height: 1.72;
-    }
-    .actions {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 30px;
-    }
-    .primary,
-    .secondary {
-      min-height: 44px;
-      padding: 0 18px;
-    }
-    .primary {
-      box-shadow: 0 16px 34px rgba(17,17,19,0.14);
-    }
-    .stage {
-      min-width: 0;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      border-radius: 8px;
-      overflow: hidden;
-      background: #111113;
+    .eyebrow { color: var(--accent); font-size: 13px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+    h1 { margin: 0; max-width: 780px; font-size: clamp(42px, 7vw, 78px); line-height: 1.02; letter-spacing: 0; }
+    .summary { max-width: 760px; color: var(--muted); font-size: 18px; margin: 0; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 26px 0 54px; }
+    .card, .legal {
+      background: var(--panel);
       border: 1px solid var(--line);
-      box-shadow: var(--shadow);
+      border-radius: 12px;
+      padding: 22px;
     }
-    .stage video {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: #111113;
-    }
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      padding-bottom: 56px;
-    }
-    .card {
-      min-height: 238px;
-      padding: 24px;
-      background: var(--panel-solid);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: 0 18px 50px rgba(31,34,40,0.06);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .card span {
-      color: #6d7078;
-      font-size: 12px;
-      font-weight: 760;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-    .card h2 {
-      font-size: 28px;
-      line-height: 1.12;
-    }
-    .card p,
-    .entry p {
-      color: var(--muted);
-      font-size: 16px;
-      line-height: 1.72;
-    }
-    .entry {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(340px, 0.52fr);
-      gap: 28px;
-      align-items: end;
-      padding: 12px 0 84px;
-    }
-    .note-list {
-      display: grid;
-      gap: 12px;
-    }
-    .note {
-      padding: 18px 20px;
-      background: rgba(255,255,255,0.92);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: 0 14px 42px rgba(31,34,40,0.05);
-      color: #3c4047;
-      font-size: 15px;
-      line-height: 1.7;
-    }
-    .download-band {
-      padding: 0 0 72px;
-    }
-    .download-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 20px 22px;
-      background: #111113;
-      color: #fff;
-      border-radius: 8px;
-      box-shadow: 0 24px 80px rgba(17,17,19,0.18);
-    }
-    .download-row strong {
-      display: block;
-      font-size: 20px;
-      line-height: 1.2;
-    }
-    .download-row span {
-      display: block;
-      margin-top: 6px;
-      color: rgba(255,255,255,0.68);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    .download-row .primary {
-      background: #ff9f0a;
-      color: #111113;
-      box-shadow: none;
-    }
-    @media (max-width: 1080px) {
-      .hero,
-      .entry {
-        grid-template-columns: 1fr;
-      }
-      .feature-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-      .stage {
-        max-width: 720px;
-      }
-    }
-    @media (max-width: 720px) {
-      .topbar {
-        grid-template-columns: 1fr;
-        justify-items: start;
-        gap: 12px;
-      }
-      .nav {
-        justify-content: flex-start;
-      }
-      .hero {
-        padding-top: 34px;
-        min-height: auto;
-      }
-      .feature-grid {
-        grid-template-columns: 1fr;
-      }
-      h1 {
-        font-size: 42px;
-        line-height: 1.02;
-      }
-      .summary {
-        font-size: 17px;
-      }
+    .card h2 { margin: 0 0 10px; font-size: 20px; }
+    .card p, .legal p, .legal li { color: var(--muted); font-size: 15px; }
+    .legal { margin-top: 18px; }
+    .legal h2 { margin: 0 0 8px; font-size: 26px; }
+    .legal h3 { margin: 24px 0 8px; font-size: 18px; }
+    .muted { color: var(--muted); }
+    footer { margin-top: 36px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 760px) {
+      .topbar { align-items: flex-start; flex-direction: column; padding: 14px 18px; }
+      nav { justify-content: flex-start; }
+      .grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <a class="brand" href="#product">PrivateChat</a>
-      <nav class="nav" aria-label="导航">
-        <a href="#product">产品</a>
-        <a href="#features">卖点</a>
-        <a href="#entry">入口</a>
-      </nav>
-      <a class="top-cta" href="/download/latest.apk">下载 APK</a>
-    </header>
+  <header class="topbar">
+    <a class="brand" href="#top">安心聊天</a>
+    <nav aria-label="导航">
+      <a href="#features">功能</a>
+      <a href="#privacy">隐私政策</a>
+      <a href="#terms">用户协议</a>
+      <a href="#deletion">账号注销</a>
+      <a href="/download/latest.apk">下载 APK</a>
+    </nav>
+  </header>
 
-    <section id="product" class="hero">
-      <div>
-        <p class="eyebrow">privatechat.yifan1.com / 商业专题页</p>
-        <h1>像计算器一样出现，像私聊一样消失。</h1>
-        <p class="summary">
-          私密聊天助手把计算器伪装、阅后即焚、锁屏回退和云端恢复串成一套更克制的私密沟通体验。
-          打开时很普通，真正的聊天入口藏在更自然的动作里；退出、切页、锁屏后，界面会自动回到计算器外壳。
-        </p>
-        <div class="actions">
-          <a class="primary" href="/download/latest.apk">下载最新版 APK</a>
-          <a class="secondary" href="#demo">查看演示</a>
-          <a class="secondary" href="https://yifan1.com/">返回 yifan1.com</a>
-        </div>
-      </div>
-
-      <div id="demo" class="stage">
-        <video
-          src="https://yifan1.com/videos/private-calculator-chat-apple-style-cn.mp4"
-          poster="https://yifan1.com/videos/private-calculator-chat-apple-style-cn-poster.jpg"
-          autoplay
-          muted
-          loop
-          playsinline
-          controls
-          preload="metadata"
-        ></video>
+  <main id="top">
+    <section class="hero">
+      <p class="eyebrow">privatechat.yifan1.com</p>
+      <h1>双人私密聊天与云端记录</h1>
+      <p class="summary">安心聊天是一款面向双人沟通的私密聊天工具，支持手机号登录、联系人管理、文字消息、图片消息、语音消息、二维码添加好友、聊天记录云端保存与恢复，以及本机锁定入口。</p>
+      <div class="actions">
+        <a class="button primary" href="/download/latest.apk">下载 Android APK</a>
+        <a class="button" href="#privacy">查看隐私政策</a>
+        <a class="button" href="#terms">查看用户协议</a>
       </div>
     </section>
 
-    <section id="features" class="feature-grid">
+    <section id="features" class="grid">
       <article class="card">
-        <span>01</span>
-        <h2>计算器外壳</h2>
-        <p>打开时先看到的是标准计算器界面，真正的聊天入口藏在更自然的动作里，避免一眼暴露用途。</p>
+        <h2>双人聊天</h2>
+        <p>通过手机号或二维码添加联系人，发送文字、图片、语音和表情。</p>
       </article>
       <article class="card">
-        <span>02</span>
-        <h2>阅后即焚时间</h2>
-        <p>在聊天框右上角就能直接设置消息保留时间，现场用起来更顺手，也更适合短时敏感沟通。</p>
+        <h2>云端记录</h2>
+        <p>支持聊天记录云端保存与恢复，便于在需要时找回重要内容。</p>
       </article>
       <article class="card">
-        <span>03</span>
-        <h2>锁屏自动回退</h2>
-        <p>锁屏、切换页面、重新打开后，程序会先回到计算器界面，不让聊天内容长时间停在前台。</p>
-      </article>
-      <article class="card">
-        <span>04</span>
-        <h2>本地与云端恢复</h2>
-        <p>图片、文字和语音都能在需要时找回，既保留私密性，也保留必要的连续沟通。</p>
+        <h2>本机锁定</h2>
+        <p>提供本机进入密码和锁定入口，降低本机误触和未经授权查看的风险。</p>
       </article>
     </section>
 
-    <section id="entry" class="entry">
-      <div>
-        <p class="eyebrow">产品判断</p>
-        <h2 style="margin-top: 16px; font-size: clamp(34px, 4vw, 56px); line-height: 1.04;">它不是花哨的隐私概念，是能直接上手的私密聊天工具。</h2>
-        <div class="actions" style="margin-top: 24px;">
-          <a class="primary" href="/download/latest.apk">直接下载</a>
-          <a class="secondary" href="/app-version.json">查看版本配置</a>
-        </div>
-      </div>
-      <div class="note-list">
-        <p class="note">阅后即焚、锁屏回退、切页隐藏，这些动作都不是为了炫技，而是让敏感沟通更低调。</p>
-        <p class="note">专题页对外展示产品能力，下载入口仍然保留在同一个子域名下，方便后续更新安装包。</p>
-        <p class="note">如果你要继续做短视频或营销素材，这个页面也能直接作为对外展示的商业落地页。</p>
-      </div>
+    <section id="privacy" class="legal">
+      <h2>安心聊天隐私政策</h2>
+      <p class="muted">更新日期：2026年6月13日</p>
+      <p>本政策适用于“安心聊天”App。运营主体为南京文晶科技有限公司。联系邮箱：zhangcaiwen1@126.com。</p>
+
+      <h3>1. 我们收集的信息</h3>
+      <ul>
+        <li>账号信息：手机号、昵称、头像地址，用于注册、登录和识别账号。</li>
+        <li>设备信息：本机生成的设备标识，用于登录状态、账号安全和多设备识别。</li>
+        <li>聊天内容：你发送或接收的文字、图片、语音、表情、联系人关系和消息时间，用于提供聊天、云端保存与恢复功能。</li>
+        <li>会员状态：会员套餐、有效期、订单状态，用于判断服务权益。</li>
+        <li>日志信息：接口请求状态、错误信息等基础运行日志，用于排查故障和保障服务稳定。</li>
+      </ul>
+
+      <h3>2. 权限使用说明</h3>
+      <ul>
+        <li>相机：用于扫描好友二维码，以及在聊天中拍摄并发送图片。</li>
+        <li>相册：用于从相册选择图片并发送给聊天联系人。</li>
+        <li>麦克风：用于录制并发送语音消息。</li>
+        <li>剪贴板：用于复制用户 ID，不会主动读取无关剪贴板内容。</li>
+      </ul>
+
+      <h3>3. 信息如何使用</h3>
+      <p>我们使用上述信息来提供账号登录、联系人管理、消息收发、云端记录、设备安全、客服支持、故障排查和服务改进。我们不会将你的聊天内容用于广告画像。</p>
+
+      <h3>4. 信息存储和保护</h3>
+      <p>你的部分数据会保存在本机，部分数据会保存在服务器，用于跨设备同步和云端恢复。我们会采取访问控制、接口鉴权、数据隔离等措施降低未授权访问风险。请理解，互联网服务无法保证绝对安全。</p>
+
+      <h3>5. 第三方服务</h3>
+      <p>当前 App 主要使用 Expo/React Native 相关基础能力、Apple 系统能力和自有后端服务。如后续接入统计、支付、客服或崩溃分析 SDK，我们会更新本政策并在必要时取得你的同意。</p>
+
+      <h3>6. 你的权利</h3>
+      <p>你可以通过 App 内功能删除消息、联系人和云端记录。若需要注销账号或删除账号相关数据，请发送邮件至 zhangcaiwen1@126.com，邮件标题建议为“账号注销/数据删除申请”，并提供注册手机号用于核验。</p>
+
+      <h3>7. 未成年人</h3>
+      <p>本服务不面向未成年人主动提供。如你是未成年人，请在监护人同意和指导下使用。</p>
+
+      <h3>8. 政策更新</h3>
+      <p>我们可能根据产品功能、法律法规或平台要求更新本政策。重大变更会通过 App 或官网页面提示。</p>
     </section>
 
-    <section class="download-band">
-      <div class="download-row">
-        <div>
-          <strong>PrivateChat Android 安装包</strong>
-          <span>当前版本 1.0.8 · 下载文件 privatechat-latest.apk</span>
-        </div>
-        <a class="primary" href="/download/latest.apk">下载最新版 APK</a>
-      </div>
+    <section id="terms" class="legal">
+      <h2>安心聊天用户协议</h2>
+      <p class="muted">更新日期：2026年6月13日</p>
+      <p>本协议由你与南京文晶科技有限公司就使用“安心聊天”App 所订立。联系邮箱：zhangcaiwen1@126.com。</p>
+
+      <h3>1. 服务内容</h3>
+      <p>安心聊天提供手机号登录、联系人管理、文字消息、图片消息、语音消息、二维码添加好友、本机锁定、云端记录保存与恢复等功能。</p>
+
+      <h3>2. 账号使用</h3>
+      <ul>
+        <li>你应提供真实、可用的手机号用于注册和登录。</li>
+        <li>你应自行保管账号、本机进入密码和设备安全。</li>
+        <li>不得冒用他人身份、恶意注册、攻击系统或干扰正常服务。</li>
+      </ul>
+
+      <h3>3. 用户内容和行为规范</h3>
+      <p>你对自己通过本服务发送、保存或上传的内容负责。你不得利用本服务发布、传输或存储违法违规、侵权、诈骗、骚扰、暴力、色情、赌博、恶意软件或侵犯他人合法权益的内容。</p>
+
+      <h3>4. 会员和付费</h3>
+      <p>当前 iOS 首版暂不提供 App 内购买。若后续在 iOS 提供订阅或数字权益购买，将通过 Apple In-App Purchase 完成，并遵守 Apple 的付款和退款规则。其他平台的会员规则以对应页面说明为准。</p>
+
+      <h3>5. 数据删除和账号注销</h3>
+      <p>你可以删除本机消息、联系人和云端记录。若需要注销账号，请按“账号注销与数据删除说明”提交申请。账号注销后，相关账号数据将按法律法规和服务安全要求处理。</p>
+
+      <h3>6. 服务变更和中断</h3>
+      <p>我们可能因维护、升级、网络故障、合规要求或不可抗力暂停或调整服务。我们会尽合理努力降低对用户的影响。</p>
+
+      <h3>7. 责任限制</h3>
+      <p>在法律允许范围内，我们不对因用户自身设备、网络、账号保管不当、第三方原因或不可抗力造成的损失承担超出法律规定的责任。</p>
+
+      <h3>8. 协议更新</h3>
+      <p>我们可能根据产品、法律法规或平台规则更新本协议。更新后继续使用本服务，视为你接受更新内容。</p>
     </section>
+
+    <section id="deletion" class="legal">
+      <h2>账号注销与数据删除说明</h2>
+      <p class="muted">更新日期：2026年6月13日</p>
+      <p>如果你希望注销安心聊天账号或删除账号相关数据，可以按本说明提交申请。</p>
+
+      <h3>1. 申请方式</h3>
+      <p>请发送邮件至 zhangcaiwen1@126.com，邮件标题为“安心聊天账号注销申请”或“安心聊天数据删除申请”。</p>
+
+      <h3>2. 需要提供的信息</h3>
+      <ul>
+        <li>注册手机号。</li>
+        <li>需要注销账号还是仅删除指定数据。</li>
+        <li>可用于联系你的邮箱或电话。</li>
+      </ul>
+
+      <h3>3. 处理流程</h3>
+      <p>我们收到申请后会进行身份核验。核验通过后，将在合理期限内处理账号注销或数据删除请求，并通过邮件反馈处理结果。</p>
+
+      <h3>4. 注销后的影响</h3>
+      <p>账号注销后，你将无法继续使用该账号登录。与账号相关的联系人、聊天记录、云端记录和会员状态可能无法恢复。根据法律法规、安全审计、争议处理要求必须保留的信息，会在必要期限内保存。</p>
+    </section>
+
+    <footer>
+      <p>南京文晶科技有限公司 · 客服邮箱：zhangcaiwen1@126.com</p>
+    </footer>
   </main>
 </body>
 </html>
