@@ -1569,11 +1569,23 @@ function rejectMembershipOrder(orderId, reviewer = 'manual-admin', reason = '') 
 }
 
 function formatEventDay(timestamp) {
-  const date = new Date(timestamp);
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(timestamp));
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+}
+
+function getShanghaiHour(timestamp) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Shanghai',
+    hour: 'numeric',
+    hour12: false,
+  }).formatToParts(new Date(timestamp));
+  return Number(parts.find((part) => part.type === 'hour')?.value || 0);
 }
 
 function startOfDay(timestamp) {
@@ -1724,7 +1736,7 @@ function recordTextMessageRitual({ ownerUserId, contactId, conversationId, conte
   `).all(contactId, eventAt);
 
   const lateNightOnly = lateNightMessages.filter((item) => {
-    const hour = new Date(item.created_at).getHours();
+    const hour = getShanghaiHour(item.created_at);
     return hour >= 23 || hour <= 3;
   });
 
