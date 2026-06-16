@@ -16,7 +16,7 @@ https://privatechat.yifan1.com/api/v1
 
 ## 页面
 
-- `pages/auth/index`：手机号登录/注册 + 本地解锁密码
+- `pages/auth/index`：微信登录 + 本地解锁密码
 - `pages/lock/index`：计算器隐私锁
 - `pages/membership/index`：会员中心和微信虚拟支付购买
 - `pages/chats/index`：联系人和好友申请

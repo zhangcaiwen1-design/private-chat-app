@@ -126,6 +126,40 @@ test('register and login accept device id from request header fallback', async (
   expect(loginRes.body.user.phone).toBe(phone);
 });
 
+test('wechat login creates an account without collecting phone number', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = jest.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      openid: 'openid-compliance-login',
+      session_key: 'session-key-compliance-login',
+    }),
+  }));
+
+  try {
+    const loginRes = await request(app)
+      .post('/api/v1/auth/wechat-login')
+      .set('x-device-id', 'device-auth-wechat-login')
+      .send({ code: 'wx-code-compliance-login' })
+      .expect(200);
+
+    expect(loginRes.body.token).toEqual(expect.any(String));
+    expect(loginRes.body.user.phone).toBe('');
+    expect(loginRes.body.user.wechat_openid_bound).toBe(true);
+
+    const loginAgainRes = await request(app)
+      .post('/api/v1/auth/wechat-login')
+      .set('x-device-id', 'device-auth-wechat-login-again')
+      .send({ code: 'wx-code-compliance-login-again' })
+      .expect(200);
+
+    expect(loginAgainRes.body.user.id).toBe(loginRes.body.user.id);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('register does not bind local contacts until the user chooses bind', async () => {
   const beforeRes = await request(app).get('/api/v1/contacts').expect(200);
   expect(beforeRes.body.contacts.length).toBeGreaterThan(0);
@@ -302,6 +336,36 @@ test('profile update changes the login phone and rejects duplicate phones', asyn
       device_id: 'device-auth-phone-new',
     })
     .expect(200);
+});
+
+test('profile update allows clearing optional phone binding', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = jest.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      openid: 'openid-phone-clear',
+      session_key: 'session-key-phone-clear',
+    }),
+  }));
+
+  const deviceId = 'device-auth-phone-clear';
+  const loginRes = await request(app)
+    .post('/api/v1/auth/wechat-login')
+    .send({ code: 'wx-code-phone-clear', device_id: deviceId })
+    .expect(200);
+
+  try {
+    const profileRes = await request(app)
+      .post('/api/v1/auth/profile')
+      .set('Authorization', `Bearer ${loginRes.body.token}`)
+      .set('x-device-id', deviceId)
+      .send({ phone: '' })
+      .expect(200);
+
+    expect(profileRes.body.user.phone).toBe('');
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 
 test('qr friend request appears in target inbox and creates both contacts after acceptance', async () => {

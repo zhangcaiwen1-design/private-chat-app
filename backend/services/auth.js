@@ -23,9 +23,11 @@ function createSessionToken() {
 
 function sanitizeAccountUser(user) {
   if (!user) return null;
+  const phone = String(user.phone || '');
   return {
     id: user.id,
-    phone: user.phone,
+    phone: phone.startsWith('wx:') ? '' : phone,
+    wechat_openid_bound: Boolean(user.wechat_openid),
     nickname: user.nickname,
     avatar_url: user.avatar_url || null,
     status: user.status,

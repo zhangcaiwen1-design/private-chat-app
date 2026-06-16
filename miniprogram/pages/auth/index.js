@@ -5,9 +5,7 @@ const storage = require('../../utils/storage');
 
 Page({
   data: {
-    phone: '',
     password: DEFAULT_LOCK_PIN,
-    nickname: '',
     agreed: true,
     loading: false,
     error: '',
@@ -37,21 +35,9 @@ Page({
     }
   },
 
-  onPhoneInput: function (event) {
-    this.setData({
-      phone: event.detail.value,
-    });
-  },
-
   onPasswordInput: function (event) {
     this.setData({
       password: event.detail.value,
-    });
-  },
-
-  onNicknameInput: function (event) {
-    this.setData({
-      nickname: event.detail.value,
     });
   },
 
@@ -62,15 +48,10 @@ Page({
   },
 
   submit: async function () {
-    const phone = String(this.data.phone || '').trim();
     const password = String(this.data.password || '').trim() || DEFAULT_LOCK_PIN;
 
     if (!this.data.agreed) {
       this.setData({ error: '请先同意协议', loading: false });
-      return;
-    }
-    if (!phone) {
-      this.setData({ error: '请输入手机号', loading: false });
       return;
     }
     if (!password) {
@@ -80,17 +61,23 @@ Page({
 
     this.setData({ loading: true, error: '' });
     try {
-      const lookup = await api.lookupPhone(phone);
-      let result;
-      if (lookup && lookup.exists) {
-        result = await api.login(phone);
-      } else {
-        result = await api.register({
-          phone: phone,
-          password: password,
-          nickname: String(this.data.nickname || '').trim(),
+      const wxLogin = await new Promise(function (resolve, reject) {
+        wx.login({
+          success: function (res) {
+            if (res && res.code) {
+              resolve(res);
+              return;
+            }
+            reject(new Error('微信登录凭证获取失败'));
+          },
+          fail: function () {
+            reject(new Error('无法调用微信登录'));
+          },
         });
-      }
+      });
+      const result = await api.wechatLogin({
+        code: wxLogin.code,
+      });
 
       storage.saveSession(result);
       storage.saveLockPin(password);

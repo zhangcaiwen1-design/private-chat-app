@@ -79,6 +79,19 @@ function register(payload) {
   });
 }
 
+function wechatLogin(payload) {
+  const data = payload || {};
+  return request('/auth/wechat-login', {
+    method: 'POST',
+    data: {
+      code: data.code,
+      nickname: data.nickname || '',
+      avatar_url: data.avatar_url || '',
+      device_id: storage.getDeviceId(),
+    },
+  });
+}
+
 function getMembershipStatus() {
   return request('/membership/me');
 }
@@ -162,6 +175,7 @@ module.exports = {
   lookupPhone,
   login,
   register,
+  wechatLogin,
   getMembershipStatus,
   getMembershipPlans,
   createMembershipPurchaseOrder,

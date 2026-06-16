@@ -81,3 +81,7 @@
   font-weight: 600;
   line-height: 92rpx;
 }
+
+.wechat-button {
+  background: #07c160;
+}

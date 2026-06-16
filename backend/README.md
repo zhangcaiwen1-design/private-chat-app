@@ -29,8 +29,8 @@ The server listens on `PORT` (default `3001`) and binds to `0.0.0.0` so Expo cli
 | --- | --- | --- | --- |
 | `PORT` | No | `3001` | Express server port. |
 | `DB_PATH` | No | `./data/app.db` | SQLite database file path. Relative paths are resolved from the process working directory. |
-| `WECHAT_MINIPROGRAM_APP_ID` | Yes for purchase flow | - | WeChat Mini Program AppID. |
-| `WECHAT_MINIPROGRAM_APP_SECRET` | Yes for purchase flow | - | WeChat Mini Program AppSecret. |
+| `WECHAT_MINIPROGRAM_APP_ID` | Yes for Mini Program login and purchase flow | - | WeChat Mini Program AppID. |
+| `WECHAT_MINIPROGRAM_APP_SECRET` | Yes for Mini Program login and purchase flow | - | WeChat Mini Program AppSecret. Keep this on the backend only. |
 | `WECHAT_VIRTUAL_PAY_OFFER_ID` | Yes for purchase flow | - | WeChat virtual payment offer ID. |
 | `WECHAT_VIRTUAL_PAY_APP_KEY` | Yes for purchase flow | - | WeChat virtual payment signing key. |
 | `WECHAT_VIRTUAL_PAY_PRODUCT_<PLAN>` | Yes for purchase flow | plan code | Optional product ID overrides for each plan. |
@@ -44,6 +44,13 @@ The server listens on `PORT` (default `3001`) and binds to `0.0.0.0` so Expo cli
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/health` | Returns server status and timestamp. |
+
+### Auth
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/v1/auth/wechat-login` | Login or create a Mini Program account from a `wx.login` code. Does not require a phone number. |
+| `POST` | `/api/v1/auth/profile` | Update nickname and optional phone binding. |
 
 ### Contacts
 

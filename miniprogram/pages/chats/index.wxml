@@ -103,7 +103,7 @@
         <view class="directory-icon purple"><view class="line-icon icon-key"></view></view>
         <view class="directory-main">
           <text class="directory-title">账号与密码</text>
-          <text class="directory-subtitle">修改手机号、昵称和进入密码</text>
+          <text class="directory-subtitle">绑定手机号（选填）、昵称和进入密码</text>
         </view>
         <view class="line-icon icon-chevron"></view>
       </view>

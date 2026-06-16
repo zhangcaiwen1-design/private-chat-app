@@ -2,7 +2,8 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { hashPassword, issueSessionForUser, loginWithPhone, logoutSession, sanitizeAccountUser } = require('../services/auth');
 const { requireCurrentUser } = require('../services/currentUser');
-const { createAccountUser, findAccountUserByPhone, updateAccountUserProfile, updateAccountUserPassword, bindLegacyLocalDataToUser, clearLegacyLocalDataForUser, getMembershipSnapshot } = require('../services/db');
+const { exchangeWxCode } = require('../services/wechatVirtualPayment');
+const { createAccountUser, findAccountUserByPhone, findAccountUserByWechatOpenid, updateAccountUserProfile, updateAccountUserPassword, bindWechatOpenidToAccountUser, bindLegacyLocalDataToUser, clearLegacyLocalDataForUser, getMembershipSnapshot } = require('../services/db');
 
 const router = express.Router();
 
@@ -70,6 +71,38 @@ router.post('/login', (req, res) => {
   return res.json({ token: result.token, user: result.user, membership: getMembershipSnapshot(result.user.id) });
 });
 
+router.post('/wechat-login', async (req, res, next) => {
+  try {
+    const wxCode = String(req.body.code || '').trim();
+    const deviceId = getDeviceId(req);
+    const nickname = String(req.body.nickname || '').trim() || '微信用户';
+    const avatarUrl = req.body.avatar_url ? String(req.body.avatar_url).trim() : null;
+
+    if (!wxCode || !deviceId) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    const wxSession = await exchangeWxCode(wxCode);
+    let user = findAccountUserByWechatOpenid(wxSession.openid);
+
+    if (!user) {
+      user = createAccountUser({
+        id: uuidv4(),
+        phone: `wx:${wxSession.openid}`,
+        wechatOpenid: wxSession.openid,
+        passwordHash: hashPassword(uuidv4()),
+        nickname,
+        avatarUrl,
+      });
+    }
+
+    const session = issueSessionForUser(user.id, deviceId);
+    return res.json({ token: session.token, user: session.user, membership: getMembershipSnapshot(user.id) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/me', requireCurrentUser, (req, res) => {
   return res.json({ user: req.currentUser, membership: getMembershipSnapshot(req.currentUser.id) });
 });
@@ -89,17 +122,36 @@ router.post('/profile', requireCurrentUser, (req, res) => {
     return res.status(400).json({ error: '昵称不能为空' });
   }
   if (phone !== undefined) {
-    if (!phone) {
-      return res.status(400).json({ error: '手机号不能为空' });
-    }
-    const existing = findAccountUserByPhone(phone);
-    if (existing && existing.id !== req.currentUser.id) {
-      return res.status(409).json({ error: '该手机号已被使用' });
+    if (phone) {
+      const existing = findAccountUserByPhone(phone);
+      if (existing && existing.id !== req.currentUser.id) {
+        return res.status(409).json({ error: '该手机号已被使用' });
+      }
     }
   }
 
   const user = updateAccountUserProfile(req.currentUser.id, { nickname, phone, avatarUrl });
   return res.json({ user: sanitizeAccountUser(user) });
+});
+
+router.post('/wechat-bind', requireCurrentUser, async (req, res, next) => {
+  try {
+    const wxCode = String(req.body.code || '').trim();
+    if (!wxCode) {
+      return res.status(400).json({ error: '缺少微信登录凭证' });
+    }
+
+    const wxSession = await exchangeWxCode(wxCode);
+    const existing = findAccountUserByWechatOpenid(wxSession.openid);
+    if (existing && existing.id !== req.currentUser.id) {
+      return res.status(409).json({ error: '该微信账号已绑定其他用户' });
+    }
+
+    const user = bindWechatOpenidToAccountUser(req.currentUser.id, wxSession.openid);
+    return res.json({ user: sanitizeAccountUser(user) });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post('/password', requireCurrentUser, (req, res) => {

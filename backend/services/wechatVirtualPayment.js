@@ -92,5 +92,6 @@ function buildTestPaymentParams({ order }) {
 module.exports = {
   buildTestPaymentParams,
   buildWechatVirtualPaymentParams,
+  exchangeWxCode,
   hasWechatVirtualPaymentConfig,
 };

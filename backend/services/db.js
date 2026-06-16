@@ -101,6 +101,15 @@ function ensureCloudBackupSchema(database) {
   `);
 }
 
+function ensureAccountUserWechatSchema(database) {
+  ensureColumn(database, 'account_users', 'wechat_openid', 'TEXT');
+  database.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_account_users_wechat_openid
+      ON account_users(wechat_openid)
+      WHERE wechat_openid IS NOT NULL;
+  `);
+}
+
 function tableSupportsStickerType(database, tableName) {
   const row = database.prepare(`
     SELECT sql FROM sqlite_master
@@ -404,6 +413,7 @@ function initDatabase() {
     CREATE TABLE IF NOT EXISTS account_users (
       id TEXT PRIMARY KEY,
       phone TEXT NOT NULL UNIQUE,
+      wechat_openid TEXT,
       password_hash TEXT NOT NULL,
       nickname TEXT NOT NULL,
       avatar_url TEXT,
@@ -535,6 +545,7 @@ function initDatabase() {
 
   ensureSyncReadySchema(database);
   ensureCloudBackupSchema(database);
+  ensureAccountUserWechatSchema(database);
   ensureStickerTypeSchema(database);
   renameSeedContact(database);
   sanitizeDemoContacts(database);
@@ -630,15 +641,34 @@ function findAccountUserById(userId, database = openDb()) {
   return database.prepare('SELECT * FROM account_users WHERE id = ?').get(userId) || null;
 }
 
-function createAccountUser({ id, phone, passwordHash, nickname, avatarUrl = null }, database = openDb()) {
+function findAccountUserByWechatOpenid(openid, database = openDb()) {
+  if (!openid) return null;
+  return database.prepare('SELECT * FROM account_users WHERE wechat_openid = ?').get(openid) || null;
+}
+
+function createAccountUser({ id, phone, wechatOpenid = null, passwordHash, nickname, avatarUrl = null }, database = openDb()) {
   const now = Date.now();
   database.prepare(`
-    INSERT INTO account_users (id, phone, password_hash, nickname, avatar_url, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
-  `).run(id, phone, passwordHash, nickname, avatarUrl, now, now);
+    INSERT INTO account_users (id, phone, wechat_openid, password_hash, nickname, avatar_url, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)
+  `).run(id, phone, wechatOpenid, passwordHash, nickname, avatarUrl, now, now);
 
   upsertUser({ userId: id, displayName: nickname, phone, adoptLegacyData: false }, database);
   return findAccountUserById(id, database);
+}
+
+function bindWechatOpenidToAccountUser(userId, wechatOpenid, database = openDb()) {
+  const existing = findAccountUserById(userId, database);
+  if (!existing || !wechatOpenid) return existing;
+
+  const now = Date.now();
+  database.prepare(`
+    UPDATE account_users
+    SET wechat_openid = ?, updated_at = ?
+    WHERE id = ?
+  `).run(wechatOpenid, now, userId);
+
+  return findAccountUserById(userId, database);
 }
 
 function updateAccountUserProfile(userId, { nickname, avatarUrl, phone }, database = openDb()) {
@@ -647,7 +677,10 @@ function updateAccountUserProfile(userId, { nickname, avatarUrl, phone }, databa
 
   const nextNickname = nickname === undefined ? existing.nickname : (nickname || existing.nickname);
   const nextAvatarUrl = avatarUrl === undefined ? existing.avatar_url : avatarUrl;
-  const nextPhone = phone === undefined ? existing.phone : String(phone).trim();
+  const normalizedPhone = phone === undefined ? undefined : String(phone).trim();
+  const nextPhone = normalizedPhone === undefined
+    ? existing.phone
+    : (normalizedPhone || (existing.wechat_openid ? `wx:${existing.wechat_openid}` : existing.phone));
   const now = Date.now();
 
   database.prepare(`
@@ -1535,27 +1568,18 @@ function rejectMembershipOrder(orderId, reviewer = 'manual-admin', reason = '') 
   return normalizeMembershipOrder(database.prepare('SELECT * FROM membership_orders WHERE id = ?').get(orderId));
 }
 
-const RITUAL_TIMEZONE_OFFSET_MS = 8 * 60 * 60 * 1000;
-
-function getRitualLocalDate(timestamp) {
-  return new Date(timestamp + RITUAL_TIMEZONE_OFFSET_MS);
-}
-
 function formatEventDay(timestamp) {
-  const date = getRitualLocalDate(timestamp);
-  const year = date.getUTCFullYear();
-  const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getUTCDate()}`.padStart(2, '0');
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-function ritualDayToTimestamp(day) {
-  const [year, month, date] = day.split('-').map(Number);
-  return Date.UTC(year, month - 1, date) - RITUAL_TIMEZONE_OFFSET_MS;
-}
-
 function startOfDay(timestamp) {
-  return ritualDayToTimestamp(formatEventDay(timestamp));
+  const date = new Date(timestamp);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
 }
 
 function normalizeRitualMilestone(row) {
@@ -1642,7 +1666,7 @@ function updateRitualStreak({ ownerUserId, contactId, streakType, eventAt }, dat
     return existing;
   }
 
-  const diffDays = Math.round((startOfDay(eventAt) - ritualDayToTimestamp(existing.last_event_day)) / (24 * 60 * 60 * 1000));
+  const diffDays = Math.round((startOfDay(eventAt) - startOfDay(new Date(existing.last_event_day).getTime())) / (24 * 60 * 60 * 1000));
   const currentDays = diffDays === 1 ? existing.current_days + 1 : 1;
   const bestDays = Math.max(existing.best_days, currentDays);
 
@@ -1700,7 +1724,7 @@ function recordTextMessageRitual({ ownerUserId, contactId, conversationId, conte
   `).all(contactId, eventAt);
 
   const lateNightOnly = lateNightMessages.filter((item) => {
-    const hour = getRitualLocalDate(item.created_at).getUTCHours();
+    const hour = new Date(item.created_at).getHours();
     return hour >= 23 || hour <= 3;
   });
 
@@ -1809,7 +1833,9 @@ module.exports = {
   findUserByPhone,
   findAccountUserByPhone,
   findAccountUserById,
+  findAccountUserByWechatOpenid,
   createAccountUser,
+  bindWechatOpenidToAccountUser,
   updateAccountUserProfile,
   updateAccountUserPassword,
   createAccountSession,

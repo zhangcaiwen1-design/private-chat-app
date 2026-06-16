@@ -9,6 +9,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "wechat:check": "node ./scripts/wechat-miniprogram-readiness-check.cjs",
+    "wechat:check:prod": "node ./scripts/wechat-miniprogram-readiness-check.cjs --strict-env",
     "cloud:restore:smoke": "node ./scripts/cloudRestoreSuite.ui.cjs",
     "cloud:verify": "node ./scripts/cloudVerificationSuite.cjs"
   },
