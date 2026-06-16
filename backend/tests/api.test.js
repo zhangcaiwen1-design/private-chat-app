@@ -7,6 +7,8 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'private-chat-test-'));
 process.env.DB_PATH = path.join(tempDir, 'test.db');
 process.env.NODE_ENV = 'test';
 process.env.ADMIN_MEMBERSHIP_KEY = 'test-admin-key';
+process.env.WECHAT_MINIPROGRAM_APP_ID = 'test-wechat-app-id';
+process.env.WECHAT_MINIPROGRAM_APP_SECRET = 'test-wechat-app-secret';
 
 const { createApp } = require('../server');
 const { closeDb } = require('../services/db');

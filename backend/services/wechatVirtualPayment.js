@@ -20,12 +20,21 @@ function hmacSha256Hex(key, value) {
   return crypto.createHmac('sha256', String(key)).update(String(value)).digest('hex');
 }
 
+function createWechatError(message, status = 502) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
 async function exchangeWxCode(wxCode) {
   if (!wxCode) {
-    throw new Error('缺少微信登录凭证');
+    throw createWechatError('缺少微信登录凭证', 400);
   }
   if (typeof fetch !== 'function') {
-    throw new Error('当前 Node 运行环境不支持调用微信登录接口');
+    throw createWechatError('当前 Node 运行环境不支持调用微信登录接口', 500);
+  }
+  if (!process.env.WECHAT_MINIPROGRAM_APP_ID || !process.env.WECHAT_MINIPROGRAM_APP_SECRET) {
+    throw createWechatError('微信小程序登录未配置', 500);
   }
 
   const url = new URL('https://api.weixin.qq.com/sns/jscode2session');
@@ -37,10 +46,11 @@ async function exchangeWxCode(wxCode) {
   const response = await fetch(url);
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.errcode) {
-    throw new Error(data.errmsg || '微信登录凭证校验失败');
+    const status = [40029, 40163].includes(Number(data.errcode)) ? 401 : 502;
+    throw createWechatError(data.errmsg || '微信登录凭证校验失败', status);
   }
   if (!data.session_key || !data.openid) {
-    throw new Error('微信登录返回缺少 session_key 或 openid');
+    throw createWechatError('微信登录返回缺少 session_key 或 openid', 502);
   }
   return data;
 }
