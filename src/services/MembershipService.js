@@ -5,22 +5,37 @@ const { createMembershipTierStore } = require('./membershipTierStore');
 
 const membershipTierStore = createMembershipTierStore(AsyncStorage);
 
-export const MONTHLY_MEMBERSHIP_PLAN = {
-  code: 'first_month_19_9',
-  name: '首月体验',
-  amount: 19.9,
-  days: 30,
-  bonusDays: 7,
-  badge: '首购赠7天',
-  summary: '限新用户首购，之后按标准月卡续费。',
-  featured: true,
-};
-
 export const FALLBACK_MEMBERSHIP_PLANS = [
-  MONTHLY_MEMBERSHIP_PLAN,
-  { code: 'monthly_39_9', name: '尊享月卡', amount: 39.9, days: 30, bonusDays: 0, badge: '标准月卡', summary: '适合稳定使用，按月续费。' },
-  { code: 'quarterly_99', name: '季卡', amount: 99, days: 90, bonusDays: 0, badge: '更省一点', summary: '一次开通三个月，适合中度使用。' },
-  { code: 'annual_299', name: '年卡', amount: 299, days: 365, bonusDays: 0, badge: '长期最省', summary: '一年有效，平均月单价最低。' },
+  {
+    code: 'monthly_39_9',
+    name: '尊享月卡',
+    amount: 39.9,
+    days: 30,
+    bonusDays: 0,
+    badge: '标准月卡',
+    summary: '适合稳定使用，按月自动续订。',
+    featured: true,
+  },
+  {
+    code: 'quarterly_99',
+    name: '季度会员',
+    amount: 99,
+    days: 90,
+    bonusDays: 0,
+    badge: '更省一点',
+    summary: '一次开通三个月，适合持续使用。',
+    featured: false,
+  },
+  {
+    code: 'annual_299',
+    name: '年度会员',
+    amount: 299,
+    days: 365,
+    bonusDays: 0,
+    badge: '长期最省',
+    summary: '全年有效，适合长期稳定使用。',
+    featured: false,
+  },
 ];
 
 export function isActiveMembership(snapshot) {

@@ -6,11 +6,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { lookupPhone } from '../../services/ApiService';
 import { acceptConversationRequest, createConversation, listConversations, listIncomingConversationRequests } from '../../services/ChatRepository';
 import { refreshMembershipStatus } from '../../services/MembershipService';
+import { getIosSubscriptionSetup } from '../../services/IosSubscriptionService';
+import QuickLockButton from './QuickLockButton';
+import { usePrivacyLockShortcut } from '../../utils/privacyLockShortcut';
 
 const FRIEND_REQUEST_SEEN_COUNT_KEY = 'friend_request_seen_count';
 
 export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRituals, onOpenMembership, onOpenPhoneSettings, onOpenUnlockPinSettings, refreshToken = 0 }) {
   const insets = useSafeAreaInsets();
+  const isIos = Platform.OS === 'ios';
+  const iosSubscriptionEnabled = getIosSubscriptionSetup().enabled;
   const [contacts, setContacts] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
@@ -23,6 +28,7 @@ export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRitual
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState('messages');
   const [activePanel, setActivePanel] = useState('root');
+  const { handleHeaderPress } = usePrivacyLockShortcut({ onDoubleTap: onLock });
 
   const loadContacts = useCallback(async ({ showAlert = false } = {}) => {
     try {
@@ -274,6 +280,13 @@ export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRitual
     },
   ];
 
+  const visibleDirectoryEntries = directoryEntries.filter((item) => {
+    if (item.key !== 'membership-center') {
+      return true;
+    }
+    return !isIos || iosSubscriptionEnabled;
+  });
+
   const requestScreenTitle = filteredRequests.length > 0 ? `新朋友 (${filteredRequests.length})` : '新朋友';
 
   const renderContact = ({ item, index }) => {
@@ -370,13 +383,13 @@ export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRitual
               <Ionicons name="chevron-back" size={22} color="#111111" />
             </TouchableOpacity>
           ) : null}
-          <View>
+          <TouchableOpacity activeOpacity={1} onPress={handleHeaderPress}>
             <Text style={styles.title}>{activePanel === 'requests' ? requestScreenTitle : activeTab === 'messages' ? '聊天' : '通讯录'}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity activeOpacity={0.75} style={styles.headerButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={onLock}>
-            <Ionicons name="calculator-outline" size={19} color="#111111" />
+            <Ionicons name={isIos ? 'lock-closed-outline' : 'calculator-outline'} size={19} color="#111111" />
           </TouchableOpacity>
           <TouchableOpacity accessibilityLabel="打开添加朋友菜单" activeOpacity={0.75} style={styles.headerButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => setActionSheetVisible(true)}>
             <Ionicons name="add" size={23} color="#111111" />
@@ -487,7 +500,7 @@ export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRitual
       ) : (
         <>
           <FlatList
-            data={directoryEntries}
+            data={visibleDirectoryEntries}
             renderItem={renderDirectoryEntry}
             keyExtractor={(item) => item.key}
             contentContainerStyle={styles.directorySection}
@@ -530,11 +543,13 @@ export default function ChatList({ onLock, navigation, onOpenCloud, onOpenRitual
         </TouchableOpacity>
         <TouchableOpacity style={styles.tabItem} onPress={onLock} activeOpacity={0.85}>
           <View style={styles.tabInner}>
-            <Ionicons name="calculator-outline" size={22} color="#8E8E93" />
-            <Text style={styles.tabTextMuted}>伪装</Text>
+            <Ionicons name={isIos ? 'lock-closed-outline' : 'calculator-outline'} size={22} color="#8E8E93" />
+            <Text style={styles.tabTextMuted}>{isIos ? '锁定' : '伪装'}</Text>
           </View>
         </TouchableOpacity>
       </View>
+
+      <QuickLockButton onPress={onLock} bottom={Math.max(insets.bottom + 92, 106)} />
 
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => { resetAddFriendState(); setModalVisible(false); }}>
         <KeyboardAvoidingView style={styles.modalOverlay} contentContainerStyle={styles.centerModalContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

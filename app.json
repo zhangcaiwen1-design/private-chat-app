@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "计算器",
+    "name": "安心计算器",
     "slug": "calculator",
-    "version": "1.0.11",
+    "version": "1.0.13",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "calculator",
@@ -13,7 +13,16 @@
       "adminEntryCode": "",
       "appUnlockPin": "",
       "membershipPaymentQrUrl": "",
+      "iosSubscriptionEnabled": true,
+      "iosSubscriptionMode": "revenuecat",
+      "iosSubscriptionMonthly": "vip.monthly",
+      "iosSubscriptionQuarterly": "vip.quarterly",
+      "iosSubscriptionAnnual": "vip.annual",
+      "revenuecatIosPublicKey": "test_ZJNdXkvzJ0JFPzzEABnKUwJYprU",
       "membershipPaymentNote": "在微信小程序内完成支付后，系统会自动开通会员。",
+      "privacyPolicyUrl": "https://privatechat.yifan1.com/privacy.html",
+      "termsOfUseUrl": "https://privatechat.yifan1.com/terms.html",
+      "accountDeletionUrl": "https://privatechat.yifan1.com/account-deletion.html",
       "appDownloadUrl": "https://privatechat.yifan1.com/download/latest.apk",
       "appVersionConfigUrl": "https://privatechat.yifan1.com/app-version.json",
       "router": {},
@@ -22,13 +31,22 @@
       }
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.privatechatapp.calculator",
-      "buildNumber": "1.0.11"
+      "buildNumber": "1.0.21",
+      "usesNonExemptEncryption": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "安心计算器",
+        "NSCameraUsageDescription": "用于扫描好友二维码，以及在聊天中拍摄并发送图片。",
+        "NSPhotoLibraryUsageDescription": "用于从相册选择图片并发送给聊天联系人。",
+        "NSPhotoLibraryAddUsageDescription": "用于保存你主动选择保存的聊天图片。",
+        "NSMicrophoneUsageDescription": "用于录制并发送语音消息。"
+      }
     },
     "android": {
       "package": "com.privatechatapp.calculator",
-      "versionCode": 12,
+      "versionCode": 14,
       "adaptiveIcon": {
         "backgroundColor": "#1C1C1E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

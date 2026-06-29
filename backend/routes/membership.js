@@ -16,6 +16,10 @@ const {
   buildWechatVirtualPaymentParams,
   hasWechatVirtualPaymentConfig,
 } = require('../services/wechatVirtualPayment');
+const {
+  getIosSubscriptionStatus,
+  syncIosSubscriptionPurchase,
+} = require('../services/iosSubscriptions');
 
 const router = express.Router();
 
@@ -26,6 +30,22 @@ router.get('/me', (req, res) => {
 
 router.get('/plans', (req, res) => {
   res.json({ plans: getMembershipPlans() });
+});
+
+router.get('/ios-subscription', (req, res) => {
+  res.json(getIosSubscriptionStatus(getCurrentUserId(req)));
+});
+
+router.post('/ios-subscription/sync', async (req, res) => {
+  try {
+    const result = await syncIosSubscriptionPurchase({
+      userId: getCurrentUserId(req),
+      payload: req.body || {},
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message || '无法同步 iOS 订阅状态' });
+  }
 });
 
 router.post('/purchase-order', async (req, res) => {

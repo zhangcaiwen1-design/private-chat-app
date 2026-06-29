@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Alert, Modal } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Alert, Modal, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteFromCloud, downloadFromCloud, getCloudBackups, restoreFromCloud } from '../../services/CloudService';
 import { refreshMembershipStatus } from '../../services/MembershipService';
+import { getIosSubscriptionSetup } from '../../services/IosSubscriptionService';
 
 function formatCloudTime(timestamp) {
   if (!timestamp) return '时间未知';
@@ -21,11 +22,15 @@ function formatCloudSource(source) {
 
 export default function CloudRecords({ onBack, onLock, onRestoreToLocal, onOpenMembership }) {
   const insets = useSafeAreaInsets();
+  const isIos = Platform.OS === 'ios';
+  const iosSubscriptionEnabled = getIosSubscriptionSetup().enabled;
   const [backups, setBackups] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [membership, setMembership] = useState({ tier: 'free', status: 'inactive', expire_at: null });
   const [previewItem, setPreviewItem] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
+  const showMembershipUpgrade = (!isIos || iosSubscriptionEnabled)
+    && (membership.tier !== 'paid' || membership.status !== 'active');
 
   useEffect(() => { load(); }, []);
 
@@ -152,15 +157,25 @@ export default function CloudRecords({ onBack, onLock, onRestoreToLocal, onOpenM
       </View>
       <View style={styles.tierCard}>
         <Text style={styles.tierLabel}>云端同步状态</Text>
-        <Text style={styles.tierValue}>{membership.tier === 'paid' && membership.status === 'active' ? '云端同步已开启' : membership.status === 'pending_payment' ? '等待支付完成' : '仅保留本地记录'}</Text>
-        <Text style={styles.tierHint}>
-          {membership.tier === 'paid' && membership.status === 'active'
-            ? '新消息会自动保存到云端，可随时恢复到本地。'
-            : membership.status === 'pending_payment'
-              ? '请在微信小程序完成支付，支付成功后云同步会自动开启。'
-              : '当前设备仅保留本地私密记录，开通会员后可自动同步到云端。'}
+        <Text style={styles.tierValue}>
+          {showMembershipUpgrade
+            ? (membership.tier === 'paid' && membership.status === 'active'
+              ? '云端同步已开启'
+              : membership.status === 'pending_payment'
+                ? '等待支付完成'
+                : '仅保留本地记录')
+            : '当前版本以保留本地记录为主'}
         </Text>
-        {membership.tier !== 'paid' || membership.status !== 'active' ? (
+        <Text style={styles.tierHint}>
+          {showMembershipUpgrade
+            ? (membership.tier === 'paid' && membership.status === 'active'
+              ? '新消息会自动保存到云端，可随时恢复到本地。'
+              : membership.status === 'pending_payment'
+                ? '请在微信小程序完成支付，支付成功后云同步会自动开启。'
+                : '当前设备仅保留本地私密记录，开通会员后可自动同步到云端。')
+            : 'iOS 这一版暂不提供应用内订阅，请先使用本地聊天与锁定功能。'}
+        </Text>
+        {showMembershipUpgrade ? (
           <TouchableOpacity style={styles.upgradeButton} onPress={onOpenMembership}>
             <Text style={styles.upgradeButtonText}>{membership.status === 'pending_payment' ? '刷新支付状态' : '开通会员'}</Text>
           </TouchableOpacity>

@@ -11,15 +11,21 @@ function resolveOtherAvatarStyle(seed = '') {
   return { backgroundColor };
 }
 
-export default function MessageBubble({ message, isMe, onPlayVoice }) {
-  const [playing, setPlaying] = useState(false);
+export default function MessageBubble({ message, isMe, onPlayVoice, isPlaying = false }) {
+  const [playPending, setPlayPending] = useState(false);
   const sticker = message.type === 'sticker' ? getStickerById(message.stickerId || message.content) : null;
 
   const handlePlayVoice = async () => {
-    if (playing) return;
-    setPlaying(true);
-    if (onPlayVoice) await onPlayVoice(message.uri);
-    setPlaying(false);
+    if (!onPlayVoice || playPending) {
+      return;
+    }
+
+    setPlayPending(true);
+    try {
+      await onPlayVoice(message);
+    } finally {
+      setPlayPending(false);
+    }
   };
 
   const renderContent = () => {
@@ -30,10 +36,15 @@ export default function MessageBubble({ message, isMe, onPlayVoice }) {
         </View>
       );
     }
+
     if (message.type === 'voice') {
       return (
-        <TouchableOpacity activeOpacity={0.75} style={[styles.voice, isMe ? styles.voiceMe : styles.voiceOther]} onPress={handlePlayVoice}>
-          {!isMe ? <Ionicons name={playing ? 'pause' : 'play'} size={15} color="#666666" style={styles.voiceIcon} /> : null}
+        <TouchableOpacity
+          activeOpacity={0.75}
+          style={[styles.voice, isMe ? styles.voiceMe : styles.voiceOther]}
+          onPress={handlePlayVoice}
+        >
+          {!isMe ? <Ionicons name={isPlaying ? 'pause' : 'play'} size={15} color="#666666" style={styles.voiceIcon} /> : null}
           <View style={[styles.wave, isMe && styles.waveMe]}>
             {[0, 1, 2, 3, 4, 5].map((index) => (
               <View
@@ -41,17 +52,18 @@ export default function MessageBubble({ message, isMe, onPlayVoice }) {
                 style={[
                   styles.bar,
                   isMe && styles.barMe,
-                  playing && styles.barPlaying,
+                  isPlaying && styles.barPlaying,
                   { height: [6, 10, 14, 18, 12, 8][index] },
                 ]}
               />
             ))}
           </View>
-          <Text style={[styles.dur, isMe && styles.durMe]}>{message.duration}″</Text>
-          {isMe ? <Ionicons name={playing ? 'pause' : 'play'} size={15} color="#2A5110" style={styles.voiceIconRight} /> : null}
+          <Text style={[styles.dur, isMe && styles.durMe]}>{message.duration || 0}″</Text>
+          {isMe ? <Ionicons name={isPlaying ? 'pause' : 'play'} size={15} color="#2A5110" style={styles.voiceIconRight} /> : null}
         </TouchableOpacity>
       );
     }
+
     if (message.type === 'sticker') {
       return (
         <View style={styles.stickerCard}>
@@ -59,6 +71,7 @@ export default function MessageBubble({ message, isMe, onPlayVoice }) {
         </View>
       );
     }
+
     return <Text style={[styles.text, isMe && styles.textMe]}>{message.text}</Text>;
   };
 
@@ -68,12 +81,26 @@ export default function MessageBubble({ message, isMe, onPlayVoice }) {
 
   return (
     <View style={[styles.wrap, isMe ? styles.wrapMe : styles.wrapOther]}>
-      {!isMe && <View style={[styles.avatar, resolveOtherAvatarStyle(contactSeed)]}><Text style={styles.avatarText}>{message.contactName?.slice?.(0, 1) || '友'}</Text></View>}
+      {!isMe ? (
+        <View style={[styles.avatar, resolveOtherAvatarStyle(contactSeed)]}>
+          <Text style={styles.avatarText}>{message.contactName?.slice?.(0, 1) || '友'}</Text>
+        </View>
+      ) : null}
+
       <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther, isImage && styles.imageBubble, isSticker && styles.stickerBubble]}>
         {renderContent()}
-        {message.burnAfterRead && <Text style={[styles.burn, isMe && styles.burnMe, isImage && styles.imageBurn, isSticker && styles.stickerBurn]}>{isImage || isSticker ? '阅后即焚' : '焚'}</Text>}
+        {message.burnAfterRead ? (
+          <Text style={[styles.burn, isMe && styles.burnMe, isImage && styles.imageBurn, isSticker && styles.stickerBurn]}>
+            {isImage || isSticker ? '阅后即焚' : '焚'}
+          </Text>
+        ) : null}
       </View>
-      {isMe && <View style={styles.myAvatar}><Text style={styles.myAvatarText}>我</Text></View>}
+
+      {isMe ? (
+        <View style={styles.myAvatar}>
+          <Text style={styles.myAvatarText}>我</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -95,12 +122,7 @@ const styles = StyleSheet.create({
   textMe: { color: '#111111' },
   imageWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: '#DADADA' },
   img: { width: 186, height: 146, borderRadius: 12, backgroundColor: '#DADADA' },
-  stickerCard: {
-    width: 58,
-    height: 58,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  stickerCard: { width: 58, height: 58, justifyContent: 'center', alignItems: 'center' },
   stickerEmoji: { fontSize: 48, lineHeight: 56 },
   voice: { flexDirection: 'row', alignItems: 'center', minWidth: 122 },
   voiceOther: { justifyContent: 'flex-start' },

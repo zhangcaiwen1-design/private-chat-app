@@ -207,6 +207,17 @@ export async function getMembershipPlans() {
   return request('/membership/plans');
 }
 
+export async function getIosSubscriptionStatus() {
+  return request('/membership/ios-subscription');
+}
+
+export async function syncIosSubscriptionPurchase(payload = {}) {
+  return request('/membership/ios-subscription/sync', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function createMembershipPurchaseOrder(payload) {
   return request('/membership/purchase-order', {
     method: 'POST',

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { getUserUnlockPin } from '../../services/UserService';
+import { getUserUnlockPin, setUserUnlockPin } from '../../services/UserService';
 import { authenticateWithBiometric } from '../../services/AuthService';
+import { DEFAULT_APP_UNLOCK_PIN } from '../../utils/constants';
 const { formatCalculatorValue, safeEvaluate } = require('../../utils/calculatorEngine');
 
 export default function Calculator({ onUnlock, kickoutMessage = '' }) {
@@ -86,12 +87,18 @@ export default function Calculator({ onUnlock, kickoutMessage = '' }) {
 
     const entered = input.trim();
     const unlockPin = await getUserUnlockPin().catch(() => '');
+    const defaultPin = String(DEFAULT_APP_UNLOCK_PIN || '').trim();
+    const matchesUnlockPin = unlockPin && entered === unlockPin;
+    const matchesRecoveryPin = defaultPin && entered === defaultPin;
 
-    if (unlockPin && entered === unlockPin) {
+    if (matchesUnlockPin || matchesRecoveryPin) {
       setVerifying(true);
       setDisplay('验证中...');
       try {
         await authenticateWithBiometric();
+        if (matchesRecoveryPin && unlockPin !== defaultPin) {
+          await setUserUnlockPin(defaultPin).catch(() => {});
+        }
         setDisplay('0');
         setInput('');
         setVerifying(false);
