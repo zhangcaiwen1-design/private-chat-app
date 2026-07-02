@@ -1124,6 +1124,92 @@ test('paid purchase order activates membership automatically', async () => {
   expect(meRes.body.plan_code).toBe('quarterly_99');
 });
 
+test('ios subscription sync activates membership automatically', async () => {
+  process.env.IOS_SUBSCRIPTION_PROVIDER = 'revenuecat';
+
+  const userHeaders = {
+    'x-user-id': 'membership-ios-user',
+    'x-user-name': 'membership-ios-user',
+    'x-user-phone': '13955550999',
+  };
+
+  const syncRes = await request(app)
+    .post('/api/v1/membership/ios-subscription/sync')
+    .set(userHeaders)
+    .send({
+      customer_info: {
+        entitlements: {
+          active: {
+            vip: {
+              productIdentifier: 'vip.annual',
+              originalTransactionIdentifier: 'ios-annual-transaction-1',
+              latestPurchaseDate: '2026-06-20T12:00:00Z',
+            },
+          },
+        },
+      },
+    })
+    .expect(200);
+
+  expect(syncRes.body.synced).toBe(true);
+  expect(syncRes.body.membership.plan_code).toBe('annual_299');
+  expect(syncRes.body.snapshot.tier).toBe('paid');
+  expect(syncRes.body.snapshot.status).toBe('active');
+
+  const meRes = await request(app)
+    .get('/api/v1/membership/me')
+    .set(userHeaders)
+    .expect(200);
+
+  expect(meRes.body.tier).toBe('paid');
+  expect(meRes.body.status).toBe('active');
+  expect(meRes.body.plan_code).toBe('annual_299');
+});
+
+test('storekit subscription sync activates membership automatically', async () => {
+  process.env.IOS_SUBSCRIPTION_PROVIDER = 'storekit';
+
+  const userHeaders = {
+    'x-user-id': 'membership-storekit-user',
+    'x-user-name': 'membership-storekit-user',
+    'x-user-phone': '13955550888',
+  };
+
+  const syncRes = await request(app)
+    .post('/api/v1/membership/ios-subscription/sync')
+    .set(userHeaders)
+    .send({
+      provider: 'storekit',
+      product_id: 'vip.monthly',
+      transaction_id: 'ios-monthly-transaction-1',
+      original_transaction_id: 'ios-monthly-original-1',
+      purchase_state: 'purchased',
+      transaction_date: Date.now(),
+      raw_purchase: {
+        productId: 'vip.monthly',
+        transactionId: 'ios-monthly-transaction-1',
+        originalTransactionIdentifierIOS: 'ios-monthly-original-1',
+        purchaseState: 'purchased',
+      },
+    })
+    .expect(200);
+
+  expect(syncRes.body.synced).toBe(true);
+  expect(syncRes.body.provider).toBe('storekit');
+  expect(syncRes.body.membership.plan_code).toBe('monthly_39_9');
+  expect(syncRes.body.snapshot.tier).toBe('paid');
+  expect(syncRes.body.snapshot.status).toBe('active');
+
+  const meRes = await request(app)
+    .get('/api/v1/membership/me')
+    .set(userHeaders)
+    .expect(200);
+
+  expect(meRes.body.tier).toBe('paid');
+  expect(meRes.body.status).toBe('active');
+  expect(meRes.body.plan_code).toBe('monthly_39_9');
+});
+
 test('admin approval activates membership and unlocks cloud access', async () => {
   const userHeaders = {
     'x-user-id': 'membership-user-2',
