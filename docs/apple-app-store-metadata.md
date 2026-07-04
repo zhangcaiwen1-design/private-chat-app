@@ -17,7 +17,9 @@
 
 你可以通过手机号建立账号，通过手机号或二维码添加联系人，并在会话中发送文字、图片、语音和表情。云端记录功能可帮助你在需要时保存和恢复重要聊天内容。
 
-iOS 首版暂不提供应用内购买。后续如提供订阅或数字权益购买，将通过 Apple In-App Purchase 完成。
+iOS 版本提供 Apple 应用内自动续期订阅会员，包含月卡会员、季卡会员和年卡会员。订阅、续期、取消和退款均通过 Apple 官方系统完成。
+
+Terms of Use (EULA): https://privatechat.yifan1.com/terms.html
 
 ## 关键词
 
@@ -44,7 +46,9 @@ Main test flow:
 5. Send text, image, and voice messages.
 6. Use cloud records to save and restore chat data.
 
-The iOS build does not use external payment. Membership purchase is not available on iOS in this version.
+The iOS build uses Apple In-App Purchase for all paid digital membership features. Reviewers can locate monthly, quarterly, and yearly subscriptions in the in-app Membership Center. No external payment method is used on iOS.
+
+Terms of Use (EULA): https://privatechat.yifan1.com/terms.html
 ```
 
 ## 截图建议
