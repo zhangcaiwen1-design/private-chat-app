@@ -20,7 +20,7 @@ jobs:
         run: |
           CHANGED_FILES="$(git diff --name-only HEAD^ HEAD || true)"
           echo "$CHANGED_FILES"
-          if echo "$CHANGED_FILES" | grep -Ev '^(backend/|\.github/workflows/deploy.yml$)' | grep -q .; then
+          if echo "$CHANGED_FILES" | grep -Ev '^(backend/|dist-site/|docs/site/|docs/apple-app-store-metadata\.md$|\.github/workflows/deploy.yml$)' | grep -q .; then
             echo "build_apk=true" >> "$GITHUB_OUTPUT"
           else
             echo "build_apk=false" >> "$GITHUB_OUTPUT"
@@ -73,6 +73,11 @@ jobs:
             cp app-version.json deploy-artifacts/site/app-version.json
             cp docs/privatechat-landing-page.html deploy-artifacts/site/index.html
           fi
+          for file in terms.html privacy.html account-deletion.html; do
+            if [ -f "dist-site/$file" ]; then
+              cp "dist-site/$file" "deploy-artifacts/site/$file"
+            fi
+          done
 
       - name: Upload deploy bundle
         uses: appleboy/scp-action@v0.1.7
@@ -220,6 +225,12 @@ jobs:
               cp "$DEPLOY_DIR/deploy-artifacts/site/index.html" "$WEB_ROOT/index.html"
               chmod 644 "$WEB_ROOT/index.html"
             fi
+            for file in terms.html privacy.html account-deletion.html; do
+              if [ -f "$DEPLOY_DIR/deploy-artifacts/site/$file" ]; then
+                cp "$DEPLOY_DIR/deploy-artifacts/site/$file" "$WEB_ROOT/$file"
+                chmod 644 "$WEB_ROOT/$file"
+              fi
+            done
 
             rm -rf "$DEPLOY_DIR"
 
