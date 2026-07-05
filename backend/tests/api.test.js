@@ -1310,6 +1310,47 @@ test('admin can reject a pending membership order', async () => {
   expect(meRes.body.status).toBe('inactive');
 });
 
+test('admin can lookup and gift membership to a friend account by phone', async () => {
+  const deviceId = 'device-admin-gift-1';
+  const registerRes = await request(app)
+    .post('/api/v1/auth/register')
+    .set('x-device-id', deviceId)
+    .send({
+      phone: '13855558888',
+      password: '111111',
+      nickname: '赠送测试用户',
+      device_id: deviceId,
+    })
+    .expect(200);
+
+  const grantRes = await request(app)
+    .post('/api/v1/admin/membership-grants')
+    .set('x-admin-key', 'test-admin-key')
+    .send({
+      phone: '13855558888',
+      plan_code: 'annual_299',
+      note: 'friend whitelist',
+    })
+    .expect(200);
+
+  expect(grantRes.body.user.phone).toBe('13855558888');
+  expect(grantRes.body.membership.status).toBe('active');
+  expect(grantRes.body.membership.plan_code).toBe('annual_299');
+  expect(grantRes.body.snapshot.tier).toBe('paid');
+  expect(Array.isArray(grantRes.body.grant_history)).toBe(true);
+  expect(grantRes.body.grant_history[0].note).toBe('friend whitelist');
+  expect(grantRes.body.grant_history[0].grant_days).toBe(365);
+
+  const lookupRes = await request(app)
+    .get('/api/v1/admin/membership-users/lookup?phone=13855558888')
+    .set('x-admin-key', 'test-admin-key')
+    .expect(200);
+
+  expect(lookupRes.body.user.id).toBe(registerRes.body.user.id);
+  expect(lookupRes.body.snapshot.tier).toBe('paid');
+  expect(lookupRes.body.grant_history[0].note).toBe('friend whitelist');
+});
+
 test('free tier cannot upload cloud backups', async () => {
   const contactRes = await request(app)
     .post('/api/v1/contacts')

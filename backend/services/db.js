@@ -533,6 +533,16 @@ function initDatabase() {
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS membership_admin_grants (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      plan_code TEXT NOT NULL,
+      grant_days INTEGER NOT NULL,
+      note TEXT,
+      reviewer TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_memberships_user_expire
       ON memberships(user_id, expire_at DESC);
 
@@ -541,6 +551,9 @@ function initDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_membership_purchase_orders_user_created
       ON membership_purchase_orders(user_id, created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_membership_admin_grants_user_created
+      ON membership_admin_grants(user_id, created_at DESC);
   `);
 
   ensureSyncReadySchema(database);
@@ -1242,6 +1255,20 @@ function normalizeMembershipOrder(row) {
   } : null;
 }
 
+function normalizeMembershipAdminGrant(row) {
+  const plan = row ? getMembershipPlanByCode(row.plan_code) : null;
+  return row ? {
+    id: row.id,
+    user_id: row.user_id,
+    plan_code: row.plan_code,
+    plan_name: plan?.name || row.plan_code,
+    grant_days: row.grant_days,
+    note: row.note || '',
+    reviewer: row.reviewer,
+    created_at: row.created_at,
+  } : null;
+}
+
 function normalizeMembershipPurchaseOrder(row) {
   const plan = row ? getMembershipPlanByCode(row.plan_code) : null;
   return row ? {
@@ -1550,6 +1577,43 @@ function approveMembershipOrder(orderId, reviewer = 'manual-admin', overrideDays
     order: normalizeMembershipOrder(database.prepare('SELECT * FROM membership_orders WHERE id = ?').get(orderId)),
     membership,
   };
+}
+
+function grantMembershipToUser({ userId, planCode, overrideDays = null, reviewer = 'manual-admin', note = '' }) {
+  const database = openDb();
+  if (!findAccountUserById(userId, database)) {
+    return null;
+  }
+
+  const membership = grantMembershipForPlan(database, {
+    userId,
+    planCode,
+    overrideDays,
+  });
+
+  database.prepare(`
+    INSERT INTO membership_admin_grants (id, user_id, plan_code, grant_days, note, reviewer, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    uuidv4(),
+    userId,
+    membership.plan_code,
+    Math.max(1, Number(overrideDays) || Number(membership.plan_days) || 1),
+    String(note || '').trim(),
+    reviewer,
+    Date.now(),
+  );
+
+  return membership;
+}
+
+function listMembershipAdminGrantsByUser(userId, limit = 10) {
+  const database = openDb();
+  const safeLimit = Math.max(1, Math.min(50, Number(limit) || 10));
+  const rows = database
+    .prepare('SELECT * FROM membership_admin_grants WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
+    .all(userId, safeLimit);
+  return rows.map(normalizeMembershipAdminGrant);
 }
 
 function rejectMembershipOrder(orderId, reviewer = 'manual-admin', reason = '') {
@@ -1877,7 +1941,9 @@ module.exports = {
   getMembershipSnapshot,
   createMembershipManualOrder,
   listMembershipOrders,
+  listMembershipAdminGrantsByUser,
   approveMembershipOrder,
+  grantMembershipToUser,
   rejectMembershipOrder,
   getRitualSummary,
   recordRelationshipStarted,
